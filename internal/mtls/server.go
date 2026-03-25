@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 )
 
-func CreateServer(certPem, keyPem []byte) (*httptest.Server, error) {
-	serverCert, err := tls.X509KeyPair(certPem, keyPem)
+func CreateServer(certPem, privateKeyPem []byte) (*httptest.Server, error) {
+	serverCert, err := tls.X509KeyPair(certPem, privateKeyPem)
 	if err != nil {
 		return nil, fmt.Errorf("error creating TLS certificate: %w", err)
 	}

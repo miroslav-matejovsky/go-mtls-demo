@@ -45,9 +45,9 @@ func RunDemoTLS() error {
 
 	certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: leafCert.Raw})
 
-	keyPem := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: leafPrivPemBytes})
+	privateKeyPem := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: leafPrivPemBytes})
 
-	server, err := CreateServer(certPem, keyPem)
+	server, err := CreateServer(certPem, privateKeyPem)
 	if err != nil {
 		return fmt.Errorf("error creating server: %w", err)
 	}
