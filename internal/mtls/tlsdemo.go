@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"net/http"
 )
 
 func tlsVersionName(version uint16) string {
@@ -23,7 +22,7 @@ func tlsVersionName(version uint16) string {
 	}
 }
 
-func TlsDemo() {
+func RunDemoTLS() {
 	println("Creating CA...")
 	ca, signLeaf, err := CreateCa()
 	if err != nil {
@@ -33,21 +32,23 @@ func TlsDemo() {
 	println("CA created successfully")
 	PrintCertificateInfo(ca)
 
-	cert, certKey, err := CreateLeafCert(signLeaf)
+	leafCert, leafPrivateKey, err := CreateLeafCert(signLeaf)
 	if err != nil {
 		println("Error creating leaf certificate:", err)
 		return
 	}
 	println("Leaf certificate created successfully")
-	PrintCertificateInfo(cert)
+	PrintCertificateInfo(leafCert)
 
-	certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
-	privPemBytes, err := x509.MarshalECPrivateKey(certKey)
+	leafPrivPemBytes, err := x509.MarshalECPrivateKey(leafPrivateKey)
 	if err != nil {
 		println("Error marshaling EC private key:", err)
 		return
 	}
-	keyPem := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privPemBytes})
+
+	certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: leafCert.Raw})
+
+	keyPem := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: leafPrivPemBytes})
 
 	server, err := CreateServer(certPem, keyPem)
 	if err != nil {
@@ -58,14 +59,10 @@ func TlsDemo() {
 	defer server.Close()
 
 	fmt.Printf("[SERVER] Listening on %s (TLS enabled)\n", server.URL)
-
-	certpool := x509.NewCertPool()
-	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Raw})
-	certpool.AppendCertsFromPEM(caPEM)
-
-	clientTLSConf := &tls.Config{RootCAs: certpool}
-	client := &http.Client{
-		Transport: &http.Transport{TLSClientConfig: clientTLSConf},
+	client, err := CreateClient(ca)
+	if err != nil {
+		println("Error creating client:", err)
+		return
 	}
 
 	fmt.Println("[CLIENT] Sending GET request over TLS...")

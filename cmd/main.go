@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	mtls.TlsDemo()
+	mtls.RunDemoTLS()
 }
