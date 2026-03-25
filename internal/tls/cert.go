@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -27,6 +28,23 @@ func tlsVersionName(version uint16) string {
 	default:
 		return fmt.Sprintf("unknown (0x%04X)", version)
 	}
+}
+
+func keyUsageNames(ku x509.KeyUsage) string {
+	var names []string
+	if ku&x509.KeyUsageCertSign != 0          { names = append(names, "certSign") }
+	if ku&x509.KeyUsageCRLSign != 0           { names = append(names, "cRLSign") }
+	if ku&x509.KeyUsageDigitalSignature != 0  { names = append(names, "digitalSignature") }
+	if ku&x509.KeyUsageContentCommitment != 0 { names = append(names, "contentCommitment") }
+	if ku&x509.KeyUsageKeyEncipherment != 0   { names = append(names, "keyEncipherment") }
+	if ku&x509.KeyUsageDataEncipherment != 0  { names = append(names, "dataEncipherment") }
+	if ku&x509.KeyUsageKeyAgreement != 0      { names = append(names, "keyAgreement") }
+	if ku&x509.KeyUsageEncipherOnly != 0      { names = append(names, "encipherOnly") }
+	if ku&x509.KeyUsageDecipherOnly != 0      { names = append(names, "decipherOnly") }
+	if len(names) == 0 {
+		return "none"
+	}
+	return strings.Join(names, ", ")
 }
 
 type signerFunc func(pub crypto.PublicKey, cn string) (*x509.Certificate, error)
@@ -81,13 +99,13 @@ func CreateCa() (*x509.Certificate, signerFunc, error) {
 	return caCert, signLeaf, nil
 }
 
-func CreateLeafCert(signLeaf signerFunc) (*x509.Certificate, *ecdsa.PrivateKey, error) {
+func CreateLeafCert(signLeaf signerFunc, cn string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
 	// this might be replaced by certtostore store.GenerateKey()
 	leafKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate leaf key: %w", err)
 	}
-	leafCert, err := signLeaf(&leafKey.PublicKey, "go mTLS Demo Leaf Certificate")
+	leafCert, err := signLeaf(&leafKey.PublicKey, cn)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create leaf certificate: %w", err)
 	}
@@ -95,13 +113,14 @@ func CreateLeafCert(signLeaf signerFunc) (*x509.Certificate, *ecdsa.PrivateKey, 
 }
 
 func PrintCertificateInfo(cert *x509.Certificate) {
-	fmt.Printf("Certificate Subject: %s\n", cert.Subject)
-	fmt.Printf("Certificate Issuer: %s\n", cert.Issuer)
-	fmt.Printf("Certificate Serial Number: %s\n", cert.SerialNumber)
-	fmt.Printf("Certificate Not Before: %s\n", cert.NotBefore)
-	fmt.Printf("Certificate Not After: %s\n", cert.NotAfter)
-	fmt.Printf("Is CA: %t\n", cert.IsCA)
-	fmt.Printf("Key Usage: %v\n", cert.KeyUsage)
-	fmt.Printf("Extended Key Usage: %v\n", cert.ExtKeyUsage)
-	fmt.Println("----------------------------------------------------------")
+	fmt.Printf("  Subject       : %s\n", cert.Subject.CommonName)
+	fmt.Printf("  Issuer        : %s\n", cert.Issuer.CommonName)
+	fmt.Printf("  Serial        : %s\n", cert.SerialNumber)
+	fmt.Printf("  Valid         : %s → %s\n",
+		cert.NotBefore.Format("2006-01-02 15:04 UTC"),
+		cert.NotAfter.Format("2006-01-02 15:04 UTC"))
+	fmt.Printf("  Is CA         : %t\n", cert.IsCA)
+	fmt.Printf("  Key Usage     : %s\n", keyUsageNames(cert.KeyUsage))
+	fmt.Printf("  Ext Key Usage : %v\n", cert.ExtKeyUsage)
+	fmt.Println()
 }
