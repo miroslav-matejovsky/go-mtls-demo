@@ -6,7 +6,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 )
 
 func tlsVersionName(version uint16) string {
@@ -39,7 +38,6 @@ func TlsDemo() {
 		println("Error creating leaf certificate:", err)
 		return
 	}
-
 	println("Leaf certificate created successfully")
 	PrintCertificateInfo(cert)
 
@@ -50,22 +48,12 @@ func TlsDemo() {
 		return
 	}
 	keyPem := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privPemBytes})
-	serverCert, err := tls.X509KeyPair(certPem, keyPem)
+
+	server, err := CreateServer(certPem, keyPem)
 	if err != nil {
-		println("Error creating TLS certificate:", err)
+		println("Error creating server:", err)
 		return
 	}
-	serverTLSConf := &tls.Config{
-		Certificates: []tls.Certificate{serverCert},
-	}
-
-	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tlsState := r.TLS
-		fmt.Printf("[SERVER] Received request over TLS — version: %s, cipher suite: %s\n",
-			tlsVersionName(tlsState.Version), tls.CipherSuiteName(tlsState.CipherSuite))
-		fmt.Fprintln(w, "success!")
-	}))
-	server.TLS = serverTLSConf
 	server.StartTLS()
 	defer server.Close()
 
