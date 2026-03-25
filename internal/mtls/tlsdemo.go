@@ -1,9 +1,6 @@
 package mtls
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -37,15 +34,9 @@ func TlsDemo() {
 	println("CA created successfully")
 	PrintCertificateInfo(ca)
 
-	// this can be replaced by certtostore store.GenerateKey()
-	certKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	cert, certKey, err := CreateLeafCert(signLeaf)
 	if err != nil {
-		println("Error generating leaf key:", err)
-		return
-	}
-	cert, err := signLeaf(&certKey.PublicKey, "go mTLS Demo Certificate")
-	if err != nil {
-		println("Error signing leaf certificate:", err)
+		println("Error creating leaf certificate:", err)
 		return
 	}
 
@@ -84,13 +75,9 @@ func TlsDemo() {
 	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Raw})
 	certpool.AppendCertsFromPEM(caPEM)
 
-	clientTLSConf := &tls.Config{
-		RootCAs: certpool,
-	}
+	clientTLSConf := &tls.Config{RootCAs: certpool}
 	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: clientTLSConf,
-		},
+		Transport: &http.Transport{TLSClientConfig: clientTLSConf},
 	}
 
 	fmt.Println("[CLIENT] Sending GET request over TLS...")

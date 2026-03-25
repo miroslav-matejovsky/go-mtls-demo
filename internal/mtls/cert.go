@@ -65,6 +65,19 @@ func CreateCa() (*x509.Certificate, signerFunc, error) {
 	return caCert, signLeaf, nil
 }
 
+func CreateLeafCert(signLeaf signerFunc) (*x509.Certificate, *ecdsa.PrivateKey, error) {
+	// this might be replaced by certtostore store.GenerateKey()
+	leafKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate leaf key: %w", err)
+	}
+	leafCert, err := signLeaf(&leafKey.PublicKey, "go mTLS Demo Leaf Certificate")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create leaf certificate: %w", err)
+	}
+	return leafCert, leafKey, nil
+}
+
 func PrintCertificateInfo(cert *x509.Certificate) {
 	fmt.Printf("Certificate Subject: %s\n", cert.Subject)
 	fmt.Printf("Certificate Issuer: %s\n", cert.Issuer)
