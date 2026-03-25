@@ -5,6 +5,8 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"io"
+	"log"
 )
 
 func RunDemo() error {
@@ -64,12 +66,13 @@ func RunDemo() error {
 	if err != nil {
 		return fmt.Errorf("error creating server: %w", err)
 	}
+	server.Config.ErrorLog = log.New(io.Discard, "", 0)
 	server.StartTLS()
 	defer server.Close()
 	fmt.Printf("[SERVER] Listening on %s\n", server.URL)
 	fmt.Println()
 
-	fmt.Println("=== Step 5/5: Make request over mTLS ===")
+	fmt.Println("=== Step 5/6: Make request over mTLS (trusted client) ===")
 	fmt.Println("Client config: trusts the CA AND sends its own certificate (mutual TLS).")
 	fmt.Println("Authentication: client verifies server cert → CA   |   server verifies client cert → CA.")
 	fmt.Println()
@@ -91,5 +94,44 @@ func RunDemo() error {
 	fmt.Printf("[CLIENT] Handshake complete  — version: %s, cipher suite: %s\n",
 		tlsVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
 	fmt.Println("[CLIENT] Response:", resp.Status)
+	fmt.Println()
+
+	fmt.Println("=== Step 6/6: Make request with an untrusted client certificate ===")
+	fmt.Println("This client has a certificate signed by a different CA that the server does not trust.")
+	fmt.Println("The server must reject the connection during the TLS handshake.")
+	fmt.Println()
+
+	untrustedCA, untrustedSignLeaf, err := CreateCa()
+	if err != nil {
+		return fmt.Errorf("error creating untrusted CA: %w", err)
+	}
+	untrustedClientCert, untrustedClientKey, err := CreateLeafCert(untrustedSignLeaf, "go mTLS Untrusted Client")
+	if err != nil {
+		return fmt.Errorf("error creating untrusted client certificate: %w", err)
+	}
+
+	untrustedKeyPemBytes, err := x509.MarshalECPrivateKey(untrustedClientKey)
+	if err != nil {
+		return fmt.Errorf("error marshaling untrusted client key: %w", err)
+	}
+	untrustedCertPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: untrustedClientCert.Raw})
+	untrustedKeyPem := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: untrustedKeyPemBytes})
+
+	// The untrusted client trusts the server's CA so the TLS dial proceeds far enough for
+	// the server to reject the client certificate.
+	untrustedClient, err := CreateClient(ca, untrustedCertPem, untrustedKeyPem)
+	if err != nil {
+		return fmt.Errorf("error creating untrusted client: %w", err)
+	}
+
+	fmt.Printf("[UNTRUSTED CLIENT] GET %s\n", server.URL)
+	_, err = untrustedClient.Get(server.URL)
+	if err != nil {
+		fmt.Printf("[UNTRUSTED CLIENT] Connection rejected — %s\n", err)
+		fmt.Println("[UNTRUSTED CLIENT] Expected: server refused the certificate because it was not signed by the trusted CA.")
+	} else {
+		return fmt.Errorf("expected untrusted client to be rejected, but request succeeded")
+	}
+	_ = untrustedCA
 	return nil
 }

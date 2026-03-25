@@ -119,7 +119,7 @@ Connections without a CA-signed client certificate will be rejected.
 
 [SERVER] Listening on https://127.0.0.1:<port>
 
-=== Step 5/5: Make request over mTLS ===
+=== Step 5/6: Make request over mTLS (trusted client) ===
 Client config: trusts the CA AND sends its own certificate (mutual TLS).
 Authentication: client verifies server cert → CA   |   server verifies client cert → CA.
 
@@ -129,14 +129,25 @@ Authentication: client verifies server cert → CA   |   server verifies client 
 [CLIENT] Server certificate verified: go mTLS Demo Server (issued by go mTLS Demo CA)
 [CLIENT] Handshake complete  — version: TLS 1.3, cipher suite: TLS_AES_128_GCM_SHA256
 [CLIENT] Response: 200 OK
+
+=== Step 6/6: Make request with an untrusted client certificate ===
+This client has a certificate signed by a different CA that the server does not trust.
+The server must reject the connection during the TLS handshake.
+
+[UNTRUSTED CLIENT] GET https://127.0.0.1:<port>
+[UNTRUSTED CLIENT] Connection rejected — Get "...": remote error: tls: unknown certificate authority
+[UNTRUSTED CLIENT] Expected: server refused the certificate because it was not signed by the trusted CA.
 ```
 
 ## Certificate structure
 
 ```text
-CA  (self-signed, IsCA=true, keyUsage: certSign + cRLSign)
-├── Server cert  (signed by CA, keyUsage: digitalSignature, extKeyUsage: serverAuth + clientAuth)
-└── Client cert  (signed by CA, keyUsage: digitalSignature, extKeyUsage: serverAuth + clientAuth)
+Trusted CA  (self-signed, IsCA=true, keyUsage: certSign + cRLSign)
+├── Server cert            (signed by CA, keyUsage: digitalSignature, extKeyUsage: serverAuth + clientAuth)
+└── Client cert            (signed by CA, keyUsage: digitalSignature, extKeyUsage: serverAuth + clientAuth)
+
+Untrusted CA  (separate self-signed CA, not known to the server)
+└── Untrusted client cert  (rejected by server — not signed by the trusted CA)
 ```
 
 All keys use ECDSA P-256. Certificates are valid for 24 hours and are generated fresh on each run.
