@@ -8,6 +8,8 @@
   "editor.formatOnSave": true,
   "editor.wordWrap": "off",
   "editor.tabSize": 2,
+  "editor.fontSize": 13,
+  "editor.fontFamily": "MesloLGS Nerd Font",
   "editor.acceptSuggestionOnEnter": "smart",
   "search.exclude": {
     "**/*.svg": true,
@@ -29,6 +31,7 @@
   "workbench.iconTheme": "vscode-icons",
   "workbench.colorTheme": "Flexoki Dark",
   "terminal.integrated.fontFamily": "MesloLGS Nerd Font",
+  "terminal.integrated.fontSize": 12,
   "terminal.integrated.profiles.windows": {
     "pwsh": {
       "source": "PowerShell",
