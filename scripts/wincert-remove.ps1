@@ -19,11 +19,11 @@
 # Switches the scope from CurrentUser to LocalMachine.
 #
 # .EXAMPLE
-# .\scripts\wincerts-remove.ps1 My "CN=test*"
+# .\scripts\wincert-remove.ps1 My "CN=test*"
 # Removes certificates from the current user's My store whose subject starts with CN=test.
 #
 # .EXAMPLE
-# .\scripts\wincerts-remove.ps1 My "*" -Machine -WhatIf
+# .\scripts\wincert-remove.ps1 My "*" -Machine -WhatIf
 # Shows what would be removed from the local machine's My store.
 #
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]

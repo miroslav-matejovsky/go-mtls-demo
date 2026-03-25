@@ -12,11 +12,11 @@
 # Switches the scope from CurrentUser to LocalMachine.
 #
 # .EXAMPLE
-# .\scripts\wincerts-list.ps1
+# .\scripts\wincert-list.ps1
 # Lists certificates from the current user's stores.
 #
 # .EXAMPLE
-# .\scripts\wincerts-list.ps1 -Machine
+# .\scripts\wincert-list.ps1 -Machine
 # Lists certificates from the local machine's stores.
 #
 [CmdletBinding()]
