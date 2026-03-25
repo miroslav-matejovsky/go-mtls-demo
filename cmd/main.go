@@ -66,4 +66,22 @@ func main() {
 	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Raw})
 	certpool.AppendCertsFromPEM(caPEM)
 
+	clientTLSConf := &tls.Config{
+		RootCAs: certpool,
+	}
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: clientTLSConf,
+		},
+	}
+
+	resp, err := client.Get(server.URL)
+	if err != nil {
+		println("Error making GET request:", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	fmt.Println("Response status:", resp.Status)
+
 }
