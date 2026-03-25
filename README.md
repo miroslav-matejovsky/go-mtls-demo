@@ -6,32 +6,34 @@ All certificates are generated in-memory at runtime using ECDSA P-256 — no fil
 ## Concepts
 
 ### TLS (one-way)
+
 Only the **server** is authenticated. The client verifies the server's certificate was signed by a
 trusted CA. The server accepts any client.
 
-```
+```text
 Client ──── verify server cert ────► Server
 ```
 
 ### mTLS (mutual)
+
 **Both** sides are authenticated. The server also requires the client to present a certificate signed
 by the same trusted CA. Each party can be sure who it is talking to.
 
-```
+```text
 Client ──── verify server cert ────► Server
 Client ◄─── verify client cert ───── Server
 ```
 
 ## Running
 
-```
+```pwsh
 go run cmd/main.go tls    # one-way TLS demo
 go run cmd/main.go mtls   # mutual TLS demo
 ```
 
 ## TLS demo output
 
-```
+```text
 === Step 1/4: Generate Certificate Authority (CA) ===
 A self-signed CA is the trusted root for this demo.
 Its certificate is given to the client so it can verify the server's identity.
@@ -74,7 +76,7 @@ Authentication: client verifies server cert → CA   |   server trusts any clien
 
 ## mTLS demo output
 
-```
+```text
 === Step 1/5: Generate Certificate Authority (CA) ===
 The same CA signs both the server and client certificates.
 Both parties trust this CA and will accept any certificate it has signed.
@@ -131,7 +133,7 @@ Authentication: client verifies server cert → CA   |   server verifies client 
 
 ## Certificate structure
 
-```
+```text
 CA  (self-signed, IsCA=true, keyUsage: certSign + cRLSign)
 ├── Server cert  (signed by CA, keyUsage: digitalSignature, extKeyUsage: serverAuth + clientAuth)
 └── Client cert  (signed by CA, keyUsage: digitalSignature, extKeyUsage: serverAuth + clientAuth)
