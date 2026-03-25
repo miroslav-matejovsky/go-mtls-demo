@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTlsDemo(t *testing.T) {
-	err := RunDemoTLS()
+func TestDemo(t *testing.T) {
+	err := RunDemo()
 	require.NoError(t, err)
 }

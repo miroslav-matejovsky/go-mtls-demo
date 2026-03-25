@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	if err := tls.RunDemoTLS(); err != nil {
+	if err := tls.RunDemo(); err != nil {
 		panic(err)
 	}
 }

@@ -1,4 +1,0 @@
-package mtls
-
-func DoSomething() {
-}
