@@ -4,6 +4,12 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/mtls"
 )
@@ -32,5 +38,32 @@ func main() {
 
 	println("Leaf certificate created successfully")
 	mtls.PrintCertificateInfo(cert)
+
+	certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+	privPemBytes, err := x509.MarshalECPrivateKey(certKey)
+	if err != nil {
+		println("Error marshaling EC private key:", err)
+		return
+	}
+	keyPem := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privPemBytes})
+	serverCert, err := tls.X509KeyPair(certPem, keyPem)
+	if err != nil {
+		println("Error creating TLS certificate:", err)
+		return
+	}
+	serverTLSConf := &tls.Config{
+		Certificates: []tls.Certificate{serverCert},
+	}
+
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "success!")
+	}))
+	server.TLS = serverTLSConf
+	server.StartTLS()
+	defer server.Close()
+
+	certpool := x509.NewCertPool()
+	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Raw})
+	certpool.AppendCertsFromPEM(caPEM)
 
 }
