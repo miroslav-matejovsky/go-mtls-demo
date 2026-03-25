@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/mtls"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tls"
 )
 
 func main() {
-	if err := mtls.RunDemoTLS(); err != nil {
+	if err := tls.RunDemoTLS(); err != nil {
 		panic(err)
 	}
 }

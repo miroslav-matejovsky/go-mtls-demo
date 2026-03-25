@@ -1,4 +1,4 @@
-package mtls
+package tls
 
 import (
 	"crypto/tls"
