@@ -1,3 +1,3 @@
-module github.com/miroslav-matejovsky/mtls-demo
+module github.com/miroslav-matejovsky/go-mtls-demo
 
 go 1.26.1
