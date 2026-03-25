@@ -1,7 +1,12 @@
 package mtls
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
 
 func TestTlsDemo(t *testing.T) {
-	RunDemoTLS()
+	err := RunDemoTLS()
+	require.NoError(t, err)
 }

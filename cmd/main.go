@@ -5,5 +5,7 @@ import (
 )
 
 func main() {
-	mtls.RunDemoTLS()
+	if err := mtls.RunDemoTLS(); err != nil {
+		panic(err)
+	}
 }
