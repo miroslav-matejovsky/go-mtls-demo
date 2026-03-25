@@ -9,6 +9,7 @@ import (
 	"crypto/x509/pkix"
 	"fmt"
 	"math/big"
+	"net"
 	"time"
 )
 
@@ -49,6 +50,7 @@ func CreateCa() (*x509.Certificate, signerFunc, error) {
 			NotAfter:     time.Now().Add(24 * time.Hour),
 			ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 			KeyUsage:     x509.KeyUsageDigitalSignature,
+			IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 		}
 		certDER, err := x509.CreateCertificate(rand.Reader, certTemplate, caCert, pub, caKey)
 		if err != nil {
