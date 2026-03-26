@@ -1,0 +1,20 @@
+# ─── Client (TPM-backed key in Windows Certificate Store) ─────────────────────
+[client]
+# Common Name embedded in the client leaf certificate's subject.
+# Also used to look up the certificate from the Windows cert store at runtime.
+cn        = "go mTLS TPM Demo Client"
+# NCrypt key container name used to store the client private key.
+# Each unique name creates an isolated key slot in the KSP.
+container = "go-mtls-demo-client"
+
+# ─── Windows Key Storage Provider ─────────────────────────────────────────────
+[client.store]
+# Certificate store location. Only "CurrentUser" is supported by this demo.
+location          = "CurrentUser"
+# Key Storage Provider (KSP) used to generate and store the client private key.
+# Leave empty to auto-select based on TPM availability:
+#   TPM 2.0 present and enabled → "Microsoft Platform Crypto Provider"   (hardware-bound, non-exportable)
+#   TPM not available / not ready → "Microsoft Software Key Storage Provider" (software KSP)
+# Override with a specific provider name to bypass auto-detection, e.g.:
+#   provider_override = "Microsoft Software Key Storage Provider"
+provider_override = ""

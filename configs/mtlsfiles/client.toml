@@ -1,0 +1,11 @@
+# ─── Trusted Client ───────────────────────────────────────────────────────────
+[client]
+# Common Name embedded in the client leaf certificate's subject.
+cn           = "go mTLS Demo Client"
+# Path where the client certificate (PEM) is written and loaded from at runtime.
+cert_file    = "certs/mtlsfiles/client/client.crt"
+# Path where the client private key (PEM) is written and loaded from at runtime.
+key_file     = "certs/mtlsfiles/client/client.key"
+# Path where the CA certificate copy is placed for the client.
+# The client reads this file to build its trust pool and verify the server cert.
+ca_cert_file = "certs/mtlsfiles/client/ca.crt"

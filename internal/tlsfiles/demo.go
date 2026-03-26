@@ -9,41 +9,39 @@ import (
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
 )
 
-const certBaseDir = "certs/tlsfiles"
-
 func RunDemo() error {
-	return runDemo(certBaseDir)
+	opCfg, err := LoadOperatorConfig(defaultOperatorConfigPath)
+	if err != nil {
+		return fmt.Errorf("loading operator config: %w", err)
+	}
+	serverCfg, err := LoadServerConfig(defaultServerConfigPath)
+	if err != nil {
+		return fmt.Errorf("loading server config: %w", err)
+	}
+	clientCfg, err := LoadClientConfig(defaultClientConfigPath)
+	if err != nil {
+		return fmt.Errorf("loading client config: %w", err)
+	}
+	return runDemo(opCfg, serverCfg, clientCfg)
 }
 
-func runDemo(baseDir string) error {
-	caCertPath       := filepath.Join(baseDir, "ca", "cert.crt")
-	serverCertPath   := filepath.Join(baseDir, "server", "server.crt")
-	serverKeyPath    := filepath.Join(baseDir, "server", "server.key")
-	// The client stores its own copy of the CA cert — received from the CA operator.
-	// In production the client machine never mounts or reads from the CA's directory.
-	clientCACertPath := filepath.Join(baseDir, "client", "ca.crt")
-
+func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfig) error {
 	fmt.Println("=== Step 1/4: Generate Certificate Authority (CA) ===")
 	fmt.Println("In a real deployment the CA lives on a dedicated secure machine.")
 	fmt.Println("Its public certificate is distributed to clients and servers.")
 	fmt.Println("The private key never leaves the CA machine — it is NOT written to disk here.")
 	fmt.Println()
 
-	caCert, signLeaf, err := cert.CreateCA("go TLS Demo CA")
+	operator, err := NewOperator(opCfg)
 	if err != nil {
-		return fmt.Errorf("error creating CA: %w", err)
+		return fmt.Errorf("error creating operator: %w", err)
 	}
-	cert.PrintCertificateInfo(caCert)
-	if err := cert.WriteCert(caCertPath, caCert); err != nil {
-		return fmt.Errorf("error writing CA certificate: %w", err)
+	cert.PrintCertificateInfo(operator.CACert())
+	if err := operator.DistributeCA(clientCfg.CACertFile); err != nil {
+		return fmt.Errorf("error distributing CA certificate to client: %w", err)
 	}
-	// Distribute the CA cert to the client's own directory (simulates the CA operator
-	// handing the public cert to the client team — no shared filesystem needed).
-	if err := cert.WriteCert(clientCACertPath, caCert); err != nil {
-		return fmt.Errorf("error writing CA certificate to client directory: %w", err)
-	}
-	fmt.Printf("  [CA]     Certificate → %s\n", caCertPath)
-	fmt.Printf("  [CA]     Distributed to client → %s\n", clientCACertPath)
+	fmt.Printf("  [OPERATOR] CA Certificate → %s\n", opCfg.CertFile)
+	fmt.Printf("  [OPERATOR] Distributed to client → %s\n", clientCfg.CACertFile)
 	fmt.Println()
 
 	fmt.Println("=== Step 2/4: Generate Server Certificate (signed by CA) ===")
@@ -51,7 +49,7 @@ func runDemo(baseDir string) error {
 	fmt.Println("The private key is generated locally and stays in the server's own directory.")
 	fmt.Println()
 
-	serverCert, serverPrivateKey, err := cert.CreateLeafCert(signLeaf, "go TLS Demo Server")
+	serverCert, serverPrivateKey, err := operator.SignCert(serverCfg.CN)
 	if err != nil {
 		return fmt.Errorf("error creating server certificate: %w", err)
 	}
@@ -61,44 +59,49 @@ func runDemo(baseDir string) error {
 	if err != nil {
 		return fmt.Errorf("error marshaling server key: %w", err)
 	}
-	if err := cert.WriteCert(serverCertPath, serverCert); err != nil {
+	if err := cert.WriteCert(serverCfg.CertFile, serverCert); err != nil {
 		return fmt.Errorf("error writing server certificate: %w", err)
 	}
-	if err := cert.WriteKey(serverKeyPath, serverKeyBytes); err != nil {
+	if err := cert.WriteKey(serverCfg.KeyFile, serverKeyBytes); err != nil {
 		return fmt.Errorf("error writing server key: %w", err)
 	}
-	fmt.Printf("  [SERVER] Certificate → %s\n", serverCertPath)
-	fmt.Printf("  [SERVER] Private key  → %s\n", serverKeyPath)
+	fmt.Printf("  [SERVER] Certificate → %s\n", serverCfg.CertFile)
+	fmt.Printf("  [SERVER] Private key  → %s\n", serverCfg.KeyFile)
 	fmt.Println()
 
 	fmt.Println("=== Step 3/4: Start TLS server (loading certificate from disk) ===")
-	fmt.Printf("Server reads from its own directory: %s\n", filepath.Join(baseDir, "server"))
+	fmt.Printf("Server reads from its own directory: %s\n", filepath.Dir(serverCfg.CertFile))
 	fmt.Println("Server does NOT require a certificate from the client (one-way TLS).")
 	fmt.Println()
 
-	server, err := CreateServer(serverCertPath, serverKeyPath)
+	server, err := CreateServer(serverCfg.CertFile, serverCfg.KeyFile)
 	if err != nil {
 		return fmt.Errorf("error creating server: %w", err)
 	}
-	server.StartTLS()
+	ln, err := tls.Listen("tcp", serverCfg.Address, server.TLSConfig)
+	if err != nil {
+		return fmt.Errorf("error starting TLS listener on %s: %w", serverCfg.Address, err)
+	}
+	go server.Serve(ln) //nolint:errcheck
 	defer server.Close()
-	fmt.Printf("[SERVER] Listening on %s\n", server.URL)
+	serverURL := "https://" + ln.Addr().String()
+	fmt.Printf("[SERVER] Listening on %s\n", serverURL)
 	fmt.Println()
 
 	fmt.Println("=== Step 4/4: Make request over TLS (loading CA certificate from disk) ===")
-	fmt.Printf("Client reads from its own directory: %s\n", filepath.Join(baseDir, "client"))
-	fmt.Println("Client trusts the CA cert it received from the CA operator (no access to ca/ needed).")
+	fmt.Printf("Client reads from its own directory: %s\n", filepath.Dir(clientCfg.CACertFile))
+	fmt.Println("Client trusts the CA cert it received from the operator (no access to ca/ needed).")
 	fmt.Println("Client config: trusts the CA — does NOT send a certificate (one-way TLS).")
 	fmt.Println("Authentication: client verifies server cert → CA   |   server trusts any client.")
 	fmt.Println()
 
-	client, err := CreateClient(clientCACertPath)
+	client, err := CreateClient(clientCfg.CACertFile)
 	if err != nil {
 		return fmt.Errorf("error creating client: %w", err)
 	}
 
-	fmt.Printf("[CLIENT] GET %s\n", server.URL)
-	resp, err := client.Get(server.URL)
+	fmt.Printf("[CLIENT] GET %s\n", serverURL)
+	resp, err := client.Get(serverURL)
 	if err != nil {
 		return fmt.Errorf("error making GET request: %w", err)
 	}

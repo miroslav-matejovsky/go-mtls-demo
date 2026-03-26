@@ -1,0 +1,13 @@
+# ─── mTLS Server ──────────────────────────────────────────────────────────────
+[server]
+# TCP address the server listens on.  Use "0.0.0.0:<port>" to accept on all interfaces.
+address      = "127.0.0.1:8444"
+# Common Name embedded in the server leaf certificate's subject.
+cn           = "go mTLS Demo Server"
+# Path where the server certificate (PEM) is written and loaded from at runtime.
+cert_file    = "certs/mtlsfiles/server/server.crt"
+# Path where the server private key (PEM) is written and loaded from at runtime.
+key_file     = "certs/mtlsfiles/server/server.key"
+# Path where the CA certificate copy is placed for the server.
+# The server reads this file to build its client-CA trust pool (RequireAndVerifyClientCert).
+ca_cert_file = "certs/mtlsfiles/server/ca.crt"

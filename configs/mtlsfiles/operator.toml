@@ -1,0 +1,9 @@
+# ─── Certificate Authority (Operator) ────────────────────────────────────────
+[ca]
+# Common Name embedded in the CA certificate's subject.
+cn        = "go mTLS Demo CA"
+# Path where the CA certificate (PEM) is written.
+cert_file = "certs/mtlsfiles/ca/cert.crt"
+# How long the CA and all leaf certificates it signs remain valid.
+# Uses Go duration syntax: "24h", "720h" (30 days), "8760h" (1 year).
+validity  = "24h"

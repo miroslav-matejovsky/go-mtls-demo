@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"time"
 
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
 )
@@ -17,7 +18,7 @@ func RunDemo() error {
 	fmt.Println("Both parties trust this CA and will accept any certificate it has signed.")
 	fmt.Println()
 
-	caCert, signLeaf, err := cert.CreateCA("go mTLS Demo CA")
+	caCert, signLeaf, err := cert.CreateCA("go mTLS Demo CA", 24*time.Hour)
 	if err != nil {
 		return fmt.Errorf("error creating CA: %w", err)
 	}
@@ -103,7 +104,7 @@ func RunDemo() error {
 	fmt.Println("The server must reject the connection during the TLS handshake.")
 	fmt.Println()
 
-	_, untrustedSignLeaf, err := cert.CreateCA("go mTLS Untrusted CA")
+	_, untrustedSignLeaf, err := cert.CreateCA("go mTLS Untrusted CA", 24*time.Hour)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted CA: %w", err)
 	}

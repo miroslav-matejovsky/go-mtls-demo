@@ -1,4 +1,6 @@
-package mtlsfiles
+//go:build windows
+
+package mtlstpm
 
 import (
 	"crypto/tls"
@@ -10,6 +12,8 @@ import (
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
 )
 
+// CreateServer builds a file-backed mTLS server that requires client certificates
+// signed by the CA whose cert is in caCertFile.
 func CreateServer(certFile, keyFile, caCertFile string) (*http.Server, error) {
 	serverCert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {

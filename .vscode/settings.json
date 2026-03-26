@@ -85,7 +85,10 @@
   "cSpell.words": [
     "certpool",
     "certtostore",
+    "mtlsfiles",
     "mtlsmem",
+    "mtlstpm",
+    "tlsfiles",
     "tlsmem",
     "wincert"
   ]
