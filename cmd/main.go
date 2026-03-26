@@ -27,7 +27,7 @@ func main() {
 	case "mtlsfiles":
 		err = mtlsfiles.RunDemo()
 	case "mtlstpm":
-		err = runMtlstpmDemo()
+		err = runMtlsTpmDemo()
 	default:
 		fmt.Fprintf(os.Stderr, "unknown mode %q — use \"tlsmem\", \"mtlsmem\", \"tlsfiles\", \"mtlsfiles\", or \"mtlstpm\"\n", os.Args[1])
 		os.Exit(1)

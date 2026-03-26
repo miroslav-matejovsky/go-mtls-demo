@@ -4,6 +4,6 @@ package main
 
 import "fmt"
 
-func runMtlstpmDemo() error {
+func runMtlsTpmDemo() error {
 	return fmt.Errorf("mtlstpm scenario requires Windows (Windows Certificate Store + TPM)")
 }

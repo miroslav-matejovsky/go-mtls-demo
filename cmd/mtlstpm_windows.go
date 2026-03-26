@@ -4,6 +4,6 @@ package main
 
 import "github.com/miroslav-matejovsky/go-mtls-demo/internal/mtlstpm"
 
-func runMtlstpmDemo() error {
+func runMtlsTpmDemo() error {
 	return mtlstpm.RunDemo()
 }
