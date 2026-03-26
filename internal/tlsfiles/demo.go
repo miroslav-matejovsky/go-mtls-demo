@@ -16,9 +16,12 @@ func RunDemo() error {
 }
 
 func runDemo(baseDir string) error {
-	caCertPath     := filepath.Join(baseDir, "ca", "cert.crt")
-	serverCertPath := filepath.Join(baseDir, "server", "server.crt")
-	serverKeyPath  := filepath.Join(baseDir, "server", "server.key")
+	caCertPath       := filepath.Join(baseDir, "ca", "cert.crt")
+	serverCertPath   := filepath.Join(baseDir, "server", "server.crt")
+	serverKeyPath    := filepath.Join(baseDir, "server", "server.key")
+	// The client stores its own copy of the CA cert — received from the CA operator.
+	// In production the client machine never mounts or reads from the CA's directory.
+	clientCACertPath := filepath.Join(baseDir, "client", "ca.crt")
 
 	fmt.Println("=== Step 1/4: Generate Certificate Authority (CA) ===")
 	fmt.Println("In a real deployment the CA lives on a dedicated secure machine.")
@@ -34,7 +37,13 @@ func runDemo(baseDir string) error {
 	if err := cert.WriteCert(caCertPath, caCert); err != nil {
 		return fmt.Errorf("error writing CA certificate: %w", err)
 	}
-	fmt.Printf("  [CA] Certificate → %s\n", caCertPath)
+	// Distribute the CA cert to the client's own directory (simulates the CA operator
+	// handing the public cert to the client team — no shared filesystem needed).
+	if err := cert.WriteCert(clientCACertPath, caCert); err != nil {
+		return fmt.Errorf("error writing CA certificate to client directory: %w", err)
+	}
+	fmt.Printf("  [CA]     Certificate → %s\n", caCertPath)
+	fmt.Printf("  [CA]     Distributed to client → %s\n", clientCACertPath)
 	fmt.Println()
 
 	fmt.Println("=== Step 2/4: Generate Server Certificate (signed by CA) ===")
@@ -77,12 +86,13 @@ func runDemo(baseDir string) error {
 	fmt.Println()
 
 	fmt.Println("=== Step 4/4: Make request over TLS (loading CA certificate from disk) ===")
-	fmt.Printf("Client reads CA certificate from: %s\n", filepath.Join(baseDir, "ca"))
+	fmt.Printf("Client reads from its own directory: %s\n", filepath.Join(baseDir, "client"))
+	fmt.Println("Client trusts the CA cert it received from the CA operator (no access to ca/ needed).")
 	fmt.Println("Client config: trusts the CA — does NOT send a certificate (one-way TLS).")
 	fmt.Println("Authentication: client verifies server cert → CA   |   server trusts any client.")
 	fmt.Println()
 
-	client, err := CreateClient(caCertPath)
+	client, err := CreateClient(clientCACertPath)
 	if err != nil {
 		return fmt.Errorf("error creating client: %w", err)
 	}
