@@ -26,9 +26,18 @@ Client ◄─── verify client cert ───── Server
 
 ## Running
 
+| Mode | What it demonstrates |
+|------|----------------------|
+| `tlsmem`   | One-way TLS — all certificates in memory |
+| `mtlsmem`  | Mutual TLS — all certificates in memory |
+| `tlsfiles` | One-way TLS — certificates written to `certs/tlsfiles/` and loaded from disk |
+| `mtlsfiles`| Mutual TLS — certificates written to `certs/mtlsfiles/` and loaded from disk |
+
 ```pwsh
-go run cmd/main.go tlsmem    # one-way TLS demo (in-memory certs)
-go run cmd/main.go mtlsmem   # mutual TLS demo  (in-memory certs)
+go run cmd/main.go tlsmem
+go run cmd/main.go mtlsmem
+go run cmd/main.go tlsfiles
+go run cmd/main.go mtlsfiles
 ```
 
 Or via the PowerShell script:
@@ -36,7 +45,11 @@ Or via the PowerShell script:
 ```pwsh
 .\scripts\run.ps1 tlsmem
 .\scripts\run.ps1 mtlsmem
+.\scripts\run.ps1 tlsfiles
+.\scripts\run.ps1 mtlsfiles
 ```
+
+The `certs/` directory is git-ignored. File-based demos recreate it on every run.
 
 ## TLS demo output
 
@@ -155,6 +168,24 @@ Trusted CA  (self-signed, IsCA=true, keyUsage: certSign + cRLSign)
 
 Untrusted CA  (separate self-signed CA, not known to the server)
 └── Untrusted client cert  (rejected by server — not signed by the trusted CA)
+```
+
+For file-based demos each party owns its own directory — in production they never share private keys:
+
+```text
+certs/
+  tlsfiles/
+    ca/        ca.crt          ← distributed to server and client
+    server/    server.crt      ← presented to clients during handshake
+               server.key      ← stays on the server machine
+  mtlsfiles/
+    ca/        ca.crt          ← distributed to server and client
+    server/    server.crt
+               server.key      ← stays on the server machine
+    client/    client.crt      ← presented to server during mTLS handshake
+               client.key      ← stays on the client machine
+    untrusted/ client.crt      ← rejected by server (different CA)
+               client.key
 ```
 
 All keys use ECDSA P-256. Certificates are valid for 24 hours and are generated fresh on each run.

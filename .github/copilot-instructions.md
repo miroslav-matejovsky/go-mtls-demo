@@ -9,41 +9,50 @@ go test ./...
 # Run tests for one package
 go test ./internal/tlsmem/...
 go test ./internal/mtlsmem/...
+go test ./internal/tlsfiles/...
+go test ./internal/mtlsfiles/...
 
 # Run a single test by name
-go test ./internal/mtlsmem/... -run TestDemo
+go test ./internal/mtlsfiles/... -run TestDemo
 
 # Run a demo
 go run cmd/main.go tlsmem
 go run cmd/main.go mtlsmem
+go run cmd/main.go tlsfiles
+go run cmd/main.go mtlsfiles
 
 # Via PowerShell script
 pwsh scripts/run.ps1 tlsmem
 pwsh scripts/run.ps1 mtlsmem
+pwsh scripts/run.ps1 tlsfiles
+pwsh scripts/run.ps1 mtlsfiles
 ```
 
 No linter is configured. No CI/CD pipeline exists.
 
 ## Architecture
 
-`internal/ca` is the shared certificate package. `internal/tlsmem` and `internal/mtlsmem` are the two demo packages, each self-contained with the same four-file layout:
+`internal/ca` is the shared certificate package. There are four demo packages, all self-contained with the same four-file layout:
 
 ```
 internal/
-  ca/       – shared: CA + leaf cert generation, PrintCertificateInfo, TLSVersionName
-  tlsmem/   – one-way TLS:   server authenticated, client is anonymous  (all certs in-memory)
-  mtlsmem/  – mutual TLS:    both server and client authenticate each other (all certs in-memory)
+  ca/          – shared: CA + leaf cert generation, PrintCertificateInfo, TLSVersionName
+  tlsmem/      – one-way TLS,   certs in memory
+  mtlsmem/     – mutual TLS,    certs in memory
+  tlsfiles/    – one-way TLS,   certs written to certs/tlsfiles/ and loaded from disk
+  mtlsfiles/   – mutual TLS,    certs written to certs/mtlsfiles/ and loaded from disk
 ```
 
-Each demo package (`tlsmem`, `mtlsmem`) has the same four-file structure:
+Each demo package has the same four-file structure:
 
 | File        | Role |
 |-------------|------|
+| `cert.go`   | PEM file write helpers (`writeCert`, `writeKey`) — file packages only |
 | `server.go` | `CreateServer(...)` — builds an `httptest.Server` with TLS config |
 | `client.go` | `CreateClient(...)` — builds an `http.Client` with the right TLS config |
 | `demo.go`   | `RunDemo()` — orchestrates the full flow with narrative step output |
 
-`cmd/main.go` is a thin dispatcher: it reads `os.Args[1]` (`tlsmem` or `mtlsmem`) and calls the appropriate `RunDemo()`. No arg → usage error; unknown arg → error. No default.
+`cmd/main.go` is a thin dispatcher: it reads `os.Args[1]` (`tlsmem`, `mtlsmem`, `tlsfiles`, or `mtlsfiles`) and calls the appropriate `RunDemo()`. No arg → usage error; unknown arg → error. No default.
 
 ## Key Conventions
 
@@ -53,9 +62,13 @@ Each demo package (`tlsmem`, `mtlsmem`) has the same four-file structure:
 
 **`httptest` for the server.** Use `httptest.NewUnstartedServer(handler)`, assign `server.TLS`, then call `server.StartTLS()`. Never call `server.Start()` — this project only exercises TLS paths.
 
-**mTLS server requires `ClientAuth: tls.RequireAndVerifyClientCert` + `ClientCAs`.** The `CreateServer` in `mtlsmem/` takes a `*x509.Certificate` CA argument for this reason; the `tlsmem/` version does not.
+**File-based demos use `runDemo(baseDir string)` for testability.** `RunDemo()` calls `runDemo(certBaseDir)` where `certBaseDir = "certs/tlsfiles"` (or `mtlsfiles`). Tests call `runDemo(t.TempDir())` directly — this keeps tests self-contained without touching the repo's `certs/` directory.
 
-**mTLS client takes PEM bytes, not file paths.** `CreateClient(ca, certPem, keyPem []byte)` uses `tls.X509KeyPair` in-memory. Do not reintroduce file-based loading.
+**File-based servers use `tls.LoadX509KeyPair`; clients use `os.ReadFile` + `certpool.AppendCertsFromPEM`.** Never reintroduce in-memory PEM bytes in the files packages.
+
+**`certs/` is git-ignored.** File-based demos create it on each run; the directory structure mirrors ownership boundaries (`ca/`, `server/`, `client/`, `untrusted/`).
+
+**mTLS server requires `ClientAuth: tls.RequireAndVerifyClientCert` + `ClientCAs`.** The `CreateServer` in `mtlsmem/` and `mtlsfiles/` takes a CA argument for this reason; the `tls*` versions do not.
 
 **Narrative output style.** `RunDemo()` prints step headers (`=== Step N/M: Description ===`), one-line explanations, then tagged log lines with `[SERVER]`, `[CLIENT]`, or `[UNTRUSTED CLIENT]` prefixes. Use `fmt.Print*` throughout — never `println` (it writes to stderr and interleaves badly).
 

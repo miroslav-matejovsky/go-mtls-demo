@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/mtlsfiles"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/mtlsmem"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tlsfiles"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tlsmem"
 )
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: go-mtls-demo <tlsmem|mtlsmem>")
+		fmt.Fprintln(os.Stderr, "usage: go-mtls-demo <tlsmem|mtlsmem|tlsfiles|mtlsfiles>")
 		os.Exit(1)
 	}
 
@@ -20,8 +22,12 @@ func main() {
 		err = tlsmem.RunDemo()
 	case "mtlsmem":
 		err = mtlsmem.RunDemo()
+	case "tlsfiles":
+		err = tlsfiles.RunDemo()
+	case "mtlsfiles":
+		err = mtlsfiles.RunDemo()
 	default:
-		fmt.Fprintf(os.Stderr, "unknown mode %q — use \"tlsmem\" or \"mtlsmem\"\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "unknown mode %q — use \"tlsmem\", \"mtlsmem\", \"tlsfiles\", or \"mtlsfiles\"\n", os.Args[1])
 		os.Exit(1)
 	}
 
