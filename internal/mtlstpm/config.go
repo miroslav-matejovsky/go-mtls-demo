@@ -16,6 +16,7 @@ type Config struct {
 	CA        CAConfig        `toml:"ca"`
 	Server    ServerConfig    `toml:"server"`
 	Client    ClientConfig    `toml:"client"`
+	Store     StoreConfig     `toml:"store"`
 	Untrusted UntrustedConfig `toml:"untrusted"`
 }
 
@@ -36,6 +37,16 @@ type ServerConfig struct {
 type ClientConfig struct {
 	CN        string `toml:"cn"`
 	Container string `toml:"container"`
+}
+
+// StoreConfig controls which Windows Key Storage Provider is used for the client key.
+type StoreConfig struct {
+	// Location is the Windows certificate store scope. Only "CurrentUser" is supported.
+	Location string `toml:"location"`
+	// ProviderOverride pins a specific KSP. Empty string means auto-detect based on TPM
+	// availability: "Microsoft Platform Crypto Provider" when TPM 2.0 is present, otherwise
+	// "Microsoft Software Key Storage Provider".
+	ProviderOverride string `toml:"provider_override"`
 }
 
 type UntrustedConfig struct {

@@ -85,28 +85,34 @@ func runDemo(cfg Config) error {
 	fmt.Println("If available, the client private key will be generated inside the TPM and never exported.")
 	fmt.Println()
 
-	tpmAvailable, tpmDetails, tpmErr := pwsh.CheckTPM()
 	var provider string
-	if tpmErr != nil {
-		fmt.Printf("  [TPM] Warning: could not query TPM — %v\n", tpmErr)
-		fmt.Println("  [TPM] Falling back to Microsoft Software Key Storage Provider.")
-		tpmAvailable = false
+	if cfg.Store.ProviderOverride != "" {
+		provider = cfg.Store.ProviderOverride
+		fmt.Printf("  [TPM] Provider override set in config: %s\n", provider)
+		fmt.Println("  [TPM] Skipping TPM auto-detection.")
 	} else {
-		for _, line := range strings.Split(tpmDetails, "\n") {
-			fmt.Printf("  %s\n", line)
+		tpmAvailable, tpmDetails, tpmErr := pwsh.CheckTPM()
+		if tpmErr != nil {
+			fmt.Printf("  [TPM] Warning: could not query TPM — %v\n", tpmErr)
+			fmt.Println("  [TPM] Falling back to Microsoft Software Key Storage Provider.")
+			tpmAvailable = false
+		} else {
+			for _, line := range strings.Split(tpmDetails, "\n") {
+				fmt.Printf("  %s\n", line)
+			}
 		}
-	}
 
-	if tpmAvailable {
-		provider = certtostore.ProviderMSPlatform
-		fmt.Println("  [TPM] TPM 2.0 present and enabled.")
-		fmt.Printf("  [TPM] Provider selected: %s\n", provider)
-		fmt.Println("  [TPM] The private key will be bound to this machine's TPM — it cannot be exported.")
-	} else {
-		provider = certtostore.ProviderMSSoftware
-		fmt.Println("  [TPM] TPM not available or not ready.")
-		fmt.Printf("  [TPM] Provider selected: %s\n", provider)
-		fmt.Println("  [TPM] The private key will be stored in NCrypt software key storage.")
+		if tpmAvailable {
+			provider = certtostore.ProviderMSPlatform
+			fmt.Println("  [TPM] TPM 2.0 present and enabled.")
+			fmt.Printf("  [TPM] Provider selected: %s\n", provider)
+			fmt.Println("  [TPM] The private key will be bound to this machine's TPM — it cannot be exported.")
+		} else {
+			provider = certtostore.ProviderMSSoftware
+			fmt.Println("  [TPM] TPM not available or not ready.")
+			fmt.Printf("  [TPM] Provider selected: %s\n", provider)
+			fmt.Println("  [TPM] The private key will be stored in NCrypt software key storage.")
+		}
 	}
 	fmt.Println()
 
