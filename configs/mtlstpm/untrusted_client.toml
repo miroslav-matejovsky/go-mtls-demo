@@ -1,0 +1,9 @@
+# ─── Untrusted Client (negative test) ─────────────────────────────────────────
+# A second, independent CA and client cert are generated in-memory under this section.
+# The private key is ephemeral (not stored in the Windows cert store).
+# The server does not trust this CA, so the TLS handshake must be rejected.
+[untrusted_client]
+# Common Name for the untrusted CA used only to sign the rogue client cert.
+ca_cn = "go mTLS TPM Untrusted CA"
+# Common Name embedded in the rogue client certificate's subject.
+cn    = "go mTLS TPM Untrusted Client"

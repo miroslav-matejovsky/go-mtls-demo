@@ -1,0 +1,5 @@
+# ─── Client ───────────────────────────────────────────────────────────────────
+[client]
+# Path where the CA certificate copy is placed for the client.
+# The client reads this file to build its trust pool and verify the server cert.
+ca_cert_file = "certs/tlsfiles/client/ca.crt"

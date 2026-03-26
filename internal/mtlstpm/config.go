@@ -9,23 +9,29 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-const defaultConfigPath = "configs/mtlstpm.toml"
+const (
+	defaultOperatorConfigPath        = "configs/mtlstpm/operator.toml"
+	defaultServerConfigPath          = "configs/mtlstpm/server.toml"
+	defaultClientConfigPath          = "configs/mtlstpm/client.toml"
+	defaultUntrustedClientConfigPath = "configs/mtlstpm/untrusted_client.toml"
+)
 
-// Config holds all externalized configuration for the mtlstpm demo.
-type Config struct {
-	CA        CAConfig        `toml:"ca"`
-	Server    ServerConfig    `toml:"server"`
-	Client    ClientConfig    `toml:"client"`
-	Store     StoreConfig     `toml:"store"`
-	Untrusted UntrustedConfig `toml:"untrusted"`
-}
-
-type CAConfig struct {
+// OperatorConfig holds the Certificate Authority configuration owned by the PKI operator.
+type OperatorConfig struct {
 	CN       string `toml:"cn"`
 	CertFile string `toml:"cert_file"`
 	Validity string `toml:"validity"`
 }
 
+func (c OperatorConfig) ParseValidity() (time.Duration, error) {
+	d, err := time.ParseDuration(c.Validity)
+	if err != nil {
+		return 0, fmt.Errorf("invalid validity %q: %w", c.Validity, err)
+	}
+	return d, nil
+}
+
+// ServerConfig holds configuration owned by the server operator.
 type ServerConfig struct {
 	Address    string `toml:"address"`
 	CN         string `toml:"cn"`
@@ -34,9 +40,11 @@ type ServerConfig struct {
 	CACertFile string `toml:"ca_cert_file"`
 }
 
+// ClientConfig holds configuration owned by the client, including Windows KSP settings.
 type ClientConfig struct {
-	CN        string `toml:"cn"`
-	Container string `toml:"container"`
+	CN        string      `toml:"cn"`
+	Container string      `toml:"container"`
+	Store     StoreConfig `toml:"store"`
 }
 
 // StoreConfig controls which Windows Key Storage Provider is used for the client key.
@@ -49,24 +57,53 @@ type StoreConfig struct {
 	ProviderOverride string `toml:"provider_override"`
 }
 
-type UntrustedConfig struct {
+// UntrustedClientConfig holds configuration for the negative-test client (different CA, in-memory).
+type UntrustedClientConfig struct {
 	CACN string `toml:"ca_cn"`
 	CN   string `toml:"cn"`
 }
 
-func (c CAConfig) ParseValidity() (time.Duration, error) {
-	d, err := time.ParseDuration(c.Validity)
-	if err != nil {
-		return 0, fmt.Errorf("invalid validity %q: %w", c.Validity, err)
+// LoadOperatorConfig reads the operator TOML config from path.
+func LoadOperatorConfig(path string) (OperatorConfig, error) {
+	var w struct {
+		CA OperatorConfig `toml:"ca"`
 	}
-	return d, nil
+	if _, err := toml.DecodeFile(path, &w); err != nil {
+		return OperatorConfig{}, fmt.Errorf("loading operator config %s: %w", path, err)
+	}
+	return w.CA, nil
 }
 
-// LoadConfig reads a TOML config file from path.
-func LoadConfig(path string) (Config, error) {
-	var cfg Config
-	if _, err := toml.DecodeFile(path, &cfg); err != nil {
-		return Config{}, fmt.Errorf("loading config %s: %w", path, err)
+// LoadServerConfig reads the server TOML config from path.
+func LoadServerConfig(path string) (ServerConfig, error) {
+	var w struct {
+		Server ServerConfig `toml:"server"`
 	}
-	return cfg, nil
+	if _, err := toml.DecodeFile(path, &w); err != nil {
+		return ServerConfig{}, fmt.Errorf("loading server config %s: %w", path, err)
+	}
+	return w.Server, nil
+}
+
+// LoadClientConfig reads the client TOML config from path.
+// The [client.store] sub-table maps directly to ClientConfig.Store.
+func LoadClientConfig(path string) (ClientConfig, error) {
+	var w struct {
+		Client ClientConfig `toml:"client"`
+	}
+	if _, err := toml.DecodeFile(path, &w); err != nil {
+		return ClientConfig{}, fmt.Errorf("loading client config %s: %w", path, err)
+	}
+	return w.Client, nil
+}
+
+// LoadUntrustedClientConfig reads the untrusted client TOML config from path.
+func LoadUntrustedClientConfig(path string) (UntrustedClientConfig, error) {
+	var w struct {
+		UntrustedClient UntrustedClientConfig `toml:"untrusted_client"`
+	}
+	if _, err := toml.DecodeFile(path, &w); err != nil {
+		return UntrustedClientConfig{}, fmt.Errorf("loading untrusted client config %s: %w", path, err)
+	}
+	return w.UntrustedClient, nil
 }

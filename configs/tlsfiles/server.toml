@@ -1,0 +1,10 @@
+# ─── TLS Server ───────────────────────────────────────────────────────────────
+[server]
+# TCP address the server listens on.  Use "0.0.0.0:<port>" to accept on all interfaces.
+address   = "127.0.0.1:8443"
+# Common Name embedded in the server leaf certificate's subject.
+cn        = "go TLS Demo Server"
+# Path where the server certificate (PEM) is written and loaded from at runtime.
+cert_file = "certs/tlsfiles/server/server.crt"
+# Path where the server private key (PEM) is written and loaded from at runtime.
+key_file  = "certs/tlsfiles/server/server.key"

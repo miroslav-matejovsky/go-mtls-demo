@@ -21,40 +21,40 @@ import (
 // rather than silently reusing the old one — ensures re-runs pick up the new cert.
 const certStoreAddReplaceExisting = 3
 
-func RunDemo(configPath string) error {
-	if configPath == "" {
-		configPath = defaultConfigPath
-	}
-	cfg, err := LoadConfig(configPath)
+func RunDemo() error {
+	opCfg, err := LoadOperatorConfig(defaultOperatorConfigPath)
 	if err != nil {
-		return fmt.Errorf("loading config: %w", err)
+		return fmt.Errorf("loading operator config: %w", err)
 	}
-	return runDemo(cfg)
+	serverCfg, err := LoadServerConfig(defaultServerConfigPath)
+	if err != nil {
+		return fmt.Errorf("loading server config: %w", err)
+	}
+	clientCfg, err := LoadClientConfig(defaultClientConfigPath)
+	if err != nil {
+		return fmt.Errorf("loading client config: %w", err)
+	}
+	untrustedCfg, err := LoadUntrustedClientConfig(defaultUntrustedClientConfigPath)
+	if err != nil {
+		return fmt.Errorf("loading untrusted client config: %w", err)
+	}
+	return runDemo(opCfg, serverCfg, clientCfg, untrustedCfg)
 }
 
-func runDemo(cfg Config) error {
-	validity, err := cfg.CA.ParseValidity()
-	if err != nil {
-		return err
-	}
-
+func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfig, untrustedCfg UntrustedClientConfig) error {
 	// ── Step 1 ──────────────────────────────────────────────────────────────
 	fmt.Println("=== Step 1/6: Generate CA and Server certificate ===")
 	fmt.Println("CA is in-memory only — its private key is never written to disk.")
-	fmt.Printf("Server cert and CA distribution copy written to: %s\n", cfg.Server.CertFile)
+	fmt.Printf("Server cert and CA distribution copy written to: %s\n", serverCfg.CertFile)
 	fmt.Println()
 
-	caCert, signLeaf, err := cert.CreateCA(cfg.CA.CN, validity)
+	operator, err := NewOperator(opCfg)
 	if err != nil {
-		return fmt.Errorf("error creating CA: %w", err)
+		return fmt.Errorf("error creating operator: %w", err)
 	}
-	cert.PrintCertificateInfo(caCert)
+	cert.PrintCertificateInfo(operator.CACert())
 
-	if err := cert.WriteCert(cfg.CA.CertFile, caCert); err != nil {
-		return fmt.Errorf("error writing CA cert: %w", err)
-	}
-
-	serverCert, serverKey, err := cert.CreateLeafCert(signLeaf, cfg.Server.CN)
+	serverCert, serverKey, err := operator.SignCert(serverCfg.CN)
 	if err != nil {
 		return fmt.Errorf("error creating server certificate: %w", err)
 	}
@@ -64,19 +64,19 @@ func runDemo(cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("error marshaling server key: %w", err)
 	}
-	if err := cert.WriteCert(cfg.Server.CertFile, serverCert); err != nil {
+	if err := cert.WriteCert(serverCfg.CertFile, serverCert); err != nil {
 		return fmt.Errorf("error writing server certificate: %w", err)
 	}
-	if err := cert.WriteKey(cfg.Server.KeyFile, serverKeyBytes); err != nil {
+	if err := cert.WriteKey(serverCfg.KeyFile, serverKeyBytes); err != nil {
 		return fmt.Errorf("error writing server key: %w", err)
 	}
-	if err := cert.WriteCert(cfg.Server.CACertFile, caCert); err != nil {
-		return fmt.Errorf("error writing CA cert to server directory: %w", err)
+	if err := operator.DistributeCA(serverCfg.CACertFile); err != nil {
+		return fmt.Errorf("error distributing CA cert to server: %w", err)
 	}
-	fmt.Printf("  [SERVER] Certificate → %s\n", cfg.Server.CertFile)
-	fmt.Printf("  [SERVER] Private key  → %s\n", cfg.Server.KeyFile)
-	fmt.Printf("  [SERVER] CA cert      → %s\n", cfg.Server.CACertFile)
-	fmt.Printf("  [CA]     Reference    → %s\n", cfg.CA.CertFile)
+	fmt.Printf("  [SERVER]   Certificate → %s\n", serverCfg.CertFile)
+	fmt.Printf("  [SERVER]   Private key  → %s\n", serverCfg.KeyFile)
+	fmt.Printf("  [SERVER]   CA cert      → %s\n", serverCfg.CACertFile)
+	fmt.Printf("  [OPERATOR] Reference    → %s\n", opCfg.CertFile)
 	fmt.Println()
 
 	// ── Step 2 ──────────────────────────────────────────────────────────────
@@ -86,8 +86,8 @@ func runDemo(cfg Config) error {
 	fmt.Println()
 
 	var provider string
-	if cfg.Store.ProviderOverride != "" {
-		provider = cfg.Store.ProviderOverride
+	if clientCfg.Store.ProviderOverride != "" {
+		provider = clientCfg.Store.ProviderOverride
 		fmt.Printf("  [TPM] Provider override set in config: %s\n", provider)
 		fmt.Println("  [TPM] Skipping TPM auto-detection.")
 	} else {
@@ -118,15 +118,15 @@ func runDemo(cfg Config) error {
 
 	// ── Step 3 ──────────────────────────────────────────────────────────────
 	fmt.Println("=== Step 3/6: Generate client key in Windows Certificate Store ===")
-	fmt.Printf("Opening CurrentUser\\My via provider=%q  container=%q\n", provider, cfg.Client.Container)
+	fmt.Printf("Opening CurrentUser\\My via provider=%q  container=%q\n", provider, clientCfg.Container)
 	fmt.Println("Generating an ECDSA P-256 key pair. The private key is created by the provider.")
 	fmt.Println("certtostore returns a crypto.Signer — operations use the provider, raw bytes stay inside.")
 	fmt.Println()
 
 	store, err := certtostore.OpenWinCertStoreCurrentUser(
 		provider,
-		cfg.Client.Container,
-		[]string{"CN=" + cfg.CA.CN},
+		clientCfg.Container,
+		[]string{"CN=" + opCfg.CN},
 		nil,
 		false,
 	)
@@ -145,7 +145,7 @@ func runDemo(cfg Config) error {
 	fmt.Printf("  [CLIENT] Key generated — algorithm: ECDSA P-256, provider: %s\n", provider)
 
 	// Use the TPM key's public key to sign a leaf cert with our CA.
-	clientCert, err := signLeaf(signer.Public(), cfg.Client.CN)
+	clientCert, err := operator.SignCertForKey(signer.Public(), clientCfg.CN)
 	if err != nil {
 		return fmt.Errorf("error signing client certificate: %w", err)
 	}
@@ -155,7 +155,7 @@ func runDemo(cfg Config) error {
 
 	// ── Step 4 ──────────────────────────────────────────────────────────────
 	fmt.Println("=== Step 4/6: Import client certificate into Windows Certificate Store ===")
-	fmt.Printf("Linking signed certificate to key container %q in CurrentUser\\My.\n", cfg.Client.Container)
+	fmt.Printf("Linking signed certificate to key container %q in CurrentUser\\My.\n", clientCfg.Container)
 	fmt.Println()
 
 	if err := store.StoreWithDisposition(clientCert, nil, certStoreAddReplaceExisting); err != nil {
@@ -163,7 +163,7 @@ func runDemo(cfg Config) error {
 	}
 	fmt.Printf("  [CLIENT] Certificate stored in CurrentUser\\My\n")
 
-	if storeInfo, err := pwsh.ShowCertsInStore(cfg.Client.CN); err != nil {
+	if storeInfo, err := pwsh.ShowCertsInStore(clientCfg.CN); err != nil {
 		fmt.Printf("  [CLIENT] Warning: could not query cert store — %v\n", err)
 	} else if storeInfo != "" {
 		fmt.Println("  [CLIENT] Cert store entry:")
@@ -177,7 +177,7 @@ func runDemo(cfg Config) error {
 	// from the CertContext. This is what a real application does on startup —
 	// it has no signer in memory, it must re-derive it from the store.
 	fmt.Println("  [CLIENT] Simulating runtime key lookup (re-deriving key from CertContext) ...")
-	storedCert, ctx, _, err := store.CertByCommonName(cfg.Client.CN)
+	storedCert, ctx, _, err := store.CertByCommonName(clientCfg.CN)
 	if err != nil {
 		return fmt.Errorf("error looking up cert from store by CN: %w", err)
 	}
@@ -192,18 +192,18 @@ func runDemo(cfg Config) error {
 
 	// ── Step 5 ──────────────────────────────────────────────────────────────
 	fmt.Println("=== Step 5/6: Start mTLS server and make trusted request ===")
-	fmt.Printf("Server loads certificates from disk: %s\n", cfg.Server.CertFile)
+	fmt.Printf("Server loads certificates from disk: %s\n", serverCfg.CertFile)
 	fmt.Printf("Client uses key from Windows cert store (provider: %s) — no key file on disk.\n", provider)
 	fmt.Println()
 
-	server, err := CreateServer(cfg.Server.CertFile, cfg.Server.KeyFile, cfg.Server.CACertFile)
+	server, err := CreateServer(serverCfg.CertFile, serverCfg.KeyFile, serverCfg.CACertFile)
 	if err != nil {
 		return fmt.Errorf("error creating server: %w", err)
 	}
 	server.ErrorLog = log.New(io.Discard, "", 0)
-	ln, err := tls.Listen("tcp", cfg.Server.Address, server.TLSConfig)
+	ln, err := tls.Listen("tcp", serverCfg.Address, server.TLSConfig)
 	if err != nil {
-		return fmt.Errorf("error starting TLS listener on %s: %w", cfg.Server.Address, err)
+		return fmt.Errorf("error starting TLS listener on %s: %w", serverCfg.Address, err)
 	}
 	go server.Serve(ln) //nolint:errcheck
 	defer server.Close()
@@ -211,7 +211,7 @@ func runDemo(cfg Config) error {
 	fmt.Printf("[SERVER] Listening on %s\n", serverURL)
 	fmt.Println()
 
-	client, err := CreateClient(caCert, storeKey, storedCert)
+	client, err := CreateClient(operator.CACert(), storeKey, storedCert)
 	if err != nil {
 		return fmt.Errorf("error creating client: %w", err)
 	}
@@ -237,11 +237,15 @@ func runDemo(cfg Config) error {
 	fmt.Println("The private key is in-memory (no cert store). The server must reject the connection.")
 	fmt.Println()
 
-	_, untrustedSign, err := cert.CreateCA(cfg.Untrusted.CACN, validity)
+	validity, err := opCfg.ParseValidity()
+	if err != nil {
+		return err
+	}
+	_, untrustedSign, err := cert.CreateCA(untrustedCfg.CACN, validity)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted CA: %w", err)
 	}
-	untrustedCert, untrustedKey, err := cert.CreateLeafCert(untrustedSign, cfg.Untrusted.CN)
+	untrustedCert, untrustedKey, err := cert.CreateLeafCert(untrustedSign, untrustedCfg.CN)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client certificate: %w", err)
 	}
@@ -249,7 +253,7 @@ func runDemo(cfg Config) error {
 	// The untrusted client still uses the trusted CA cert to verify the server —
 	// it's rejected because its OWN cert is from a different CA, not because it
 	// can't reach the server.
-	untrustedClient, err := CreateClient(caCert, untrustedKey, untrustedCert)
+	untrustedClient, err := CreateClient(operator.CACert(), untrustedKey, untrustedCert)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client: %w", err)
 	}
@@ -264,7 +268,7 @@ func runDemo(cfg Config) error {
 	}
 	fmt.Println()
 
-	printCleanupInstructions(provider, cfg.Client.Container, cfg.Client.CN)
+	printCleanupInstructions(provider, clientCfg.Container, clientCfg.CN)
 	return nil
 }
 
