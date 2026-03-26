@@ -27,8 +27,15 @@ Client ◄─── verify client cert ───── Server
 ## Running
 
 ```pwsh
-go run cmd/main.go tls    # one-way TLS demo
-go run cmd/main.go mtls   # mutual TLS demo
+go run cmd/main.go tlsmem    # one-way TLS demo (in-memory certs)
+go run cmd/main.go mtlsmem   # mutual TLS demo  (in-memory certs)
+```
+
+Or via the PowerShell script:
+
+```pwsh
+.\scripts\run.ps1 tlsmem
+.\scripts\run.ps1 mtlsmem
 ```
 
 ## TLS demo output
@@ -38,8 +45,8 @@ go run cmd/main.go mtls   # mutual TLS demo
 A self-signed CA is the trusted root for this demo.
 Its certificate is given to the client so it can verify the server's identity.
 
-  Subject       : go mTLS Demo CA
-  Issuer        : go mTLS Demo CA
+  Subject       : go TLS Demo CA
+  Issuer        : go TLS Demo CA
   Serial        : 1
   Valid         : 2026-03-25 18:13 UTC → 2026-03-26 19:13 UTC
   Is CA         : true
@@ -51,7 +58,7 @@ The server presents this certificate during the TLS handshake.
 The client verifies its signature chain leads back to the trusted CA.
 
   Subject       : go TLS Demo Server
-  Issuer        : go mTLS Demo CA
+  Issuer        : go TLS Demo CA
   Serial        : 2
   Valid         : 2026-03-25 18:13 UTC → 2026-03-26 19:13 UTC
   Is CA         : false
