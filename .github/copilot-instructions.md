@@ -26,32 +26,30 @@ No linter is configured. No CI/CD pipeline exists.
 
 ## Architecture
 
-Two parallel, self-contained demo packages under `internal/`:
+`internal/ca` is the shared certificate package. `internal/tls` and `internal/mtls` are the two demo packages, each self-contained with the same four-file layout:
 
 ```
 internal/
-  tls/   – one-way TLS:   server authenticated, client is anonymous
-  mtls/  – mutual TLS:    both server and client authenticate each other
+  ca/     – shared: CA + leaf cert generation, PrintCertificateInfo, TLSVersionName
+  tls/    – one-way TLS:   server authenticated, client is anonymous
+  mtls/   – mutual TLS:    both server and client authenticate each other
 ```
 
-Each package has the same four-file structure:
+Each demo package (`tls`, `mtls`) has the same four-file structure:
 
 | File        | Role |
 |-------------|------|
-| `cert.go`   | CA + leaf cert generation, `PrintCertificateInfo`, `keyUsageNames` |
 | `server.go` | `CreateServer(...)` — builds an `httptest.Server` with TLS config |
 | `client.go` | `CreateClient(...)` — builds an `http.Client` with the right TLS config |
 | `demo.go`   | `RunDemo()` — orchestrates the full flow with narrative step output |
-
-`cert.go` is intentionally duplicated between the two packages so each package is a standalone, readable unit.
 
 `cmd/main.go` is a thin dispatcher: it reads `os.Args[1]` (`tls` or `mtls`) and calls the appropriate `RunDemo()`. No arg → usage error; unknown arg → error. No default.
 
 ## Key Conventions
 
-**In-memory certificates only.** All keys and certificates are generated at runtime with `crypto/ecdsa` + `elliptic.P256()`. No PEM files, no `openssl`. Use `x509.MarshalECPrivateKey` + `pem.EncodeToMemory` to convert to bytes when needed.
+**`internal/ca` is the shared package.** `ca.CreateCA(cn string)`, `ca.CreateLeafCert(signLeaf, cn)`, `ca.PrintCertificateInfo`, and `ca.TLSVersionName` are the shared exports. Both demo packages import it as `"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"` and call `ca.CreateCA(...)` etc.
 
-**`signerFunc` closure pattern.** `CreateCa()` returns a `signerFunc` — a closure that signs leaf certificates with the CA's private key without exposing the key itself. Always pass this function through; never expose the raw CA key outside `cert.go`.
+**`signerFunc` / `ca.SignerFunc` closure pattern.** `CreateCa()` returns a `signerFunc` — a closure that signs leaf certificates with the CA's private key without exposing the key itself. Always pass this function through; never expose the raw CA key outside `cert.go`.
 
 **`httptest` for the server.** Use `httptest.NewUnstartedServer(handler)`, assign `server.TLS`, then call `server.StartTLS()`. Never call `server.Start()` — this project only exercises TLS paths.
 

@@ -5,6 +5,8 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
 )
 
 func RunDemo() error {
@@ -13,22 +15,22 @@ func RunDemo() error {
 	fmt.Println("Its certificate is given to the client so it can verify the server's identity.")
 	fmt.Println()
 
-	ca, signLeaf, err := CreateCa()
+	caCert, signLeaf, err := ca.CreateCA("go TLS Demo CA")
 	if err != nil {
 		return fmt.Errorf("error creating CA: %w", err)
 	}
-	PrintCertificateInfo(ca)
+	ca.PrintCertificateInfo(caCert)
 
 	fmt.Println("=== Step 2/4: Generate Server Certificate (signed by CA) ===")
 	fmt.Println("The server presents this certificate during the TLS handshake.")
 	fmt.Println("The client verifies its signature chain leads back to the trusted CA.")
 	fmt.Println()
 
-	serverCert, serverPrivateKey, err := CreateLeafCert(signLeaf, "go TLS Demo Server")
+	serverCert, serverPrivateKey, err := ca.CreateLeafCert(signLeaf, "go TLS Demo Server")
 	if err != nil {
 		return fmt.Errorf("error creating server certificate: %w", err)
 	}
-	PrintCertificateInfo(serverCert)
+	ca.PrintCertificateInfo(serverCert)
 
 	serverPrivPemBytes, err := x509.MarshalECPrivateKey(serverPrivateKey)
 	if err != nil {
@@ -56,7 +58,7 @@ func RunDemo() error {
 	fmt.Println("Authentication: client verifies server cert → CA   |   server trusts any client.")
 	fmt.Println()
 
-	client, err := CreateClient(ca)
+	client, err := CreateClient(caCert)
 	if err != nil {
 		return fmt.Errorf("error creating client: %w", err)
 	}
@@ -69,7 +71,7 @@ func RunDemo() error {
 	defer resp.Body.Close()
 
 	fmt.Printf("[CLIENT] Handshake complete  — version: %s, cipher suite: %s\n",
-		tlsVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
+		ca.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
 	fmt.Println("[CLIENT] Response:", resp.Status)
 	return nil
 }

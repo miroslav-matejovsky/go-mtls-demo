@@ -1,4 +1,4 @@
-package tls
+package ca
 
 import (
 	"crypto"
@@ -15,48 +15,19 @@ import (
 	"time"
 )
 
-func tlsVersionName(version uint16) string {
-	switch version {
-	case tls.VersionTLS10:
-		return "TLS 1.0"
-	case tls.VersionTLS11:
-		return "TLS 1.1"
-	case tls.VersionTLS12:
-		return "TLS 1.2"
-	case tls.VersionTLS13:
-		return "TLS 1.3"
-	default:
-		return fmt.Sprintf("unknown (0x%04X)", version)
-	}
-}
+// SignerFunc signs a public key with the given CN and returns a leaf certificate.
+type SignerFunc func(pub crypto.PublicKey, cn string) (*x509.Certificate, error)
 
-func keyUsageNames(ku x509.KeyUsage) string {
-	var names []string
-	if ku&x509.KeyUsageCertSign != 0          { names = append(names, "certSign") }
-	if ku&x509.KeyUsageCRLSign != 0           { names = append(names, "cRLSign") }
-	if ku&x509.KeyUsageDigitalSignature != 0  { names = append(names, "digitalSignature") }
-	if ku&x509.KeyUsageContentCommitment != 0 { names = append(names, "contentCommitment") }
-	if ku&x509.KeyUsageKeyEncipherment != 0   { names = append(names, "keyEncipherment") }
-	if ku&x509.KeyUsageDataEncipherment != 0  { names = append(names, "dataEncipherment") }
-	if ku&x509.KeyUsageKeyAgreement != 0      { names = append(names, "keyAgreement") }
-	if ku&x509.KeyUsageEncipherOnly != 0      { names = append(names, "encipherOnly") }
-	if ku&x509.KeyUsageDecipherOnly != 0      { names = append(names, "decipherOnly") }
-	if len(names) == 0 {
-		return "none"
-	}
-	return strings.Join(names, ", ")
-}
-
-type signerFunc func(pub crypto.PublicKey, cn string) (*x509.Certificate, error)
-
-func CreateCa() (*x509.Certificate, signerFunc, error) {
+// CreateCA creates a self-signed CA certificate with the given common name.
+// It returns the CA certificate and a SignerFunc closure for issuing leaf certificates.
+func CreateCA(cn string) (*x509.Certificate, SignerFunc, error) {
 	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate CA key: %w", err)
 	}
 	caTemplate := &x509.Certificate{
 		SerialNumber:          big.NewInt(1),
-		Subject:               pkix.Name{CommonName: "go mTLS Demo CA"},
+		Subject:               pkix.Name{CommonName: cn},
 		NotBefore:             time.Now().Add(-time.Hour),
 		NotAfter:              time.Now().Add(24 * time.Hour),
 		IsCA:                  true,
@@ -99,8 +70,10 @@ func CreateCa() (*x509.Certificate, signerFunc, error) {
 	return caCert, signLeaf, nil
 }
 
-func CreateLeafCert(signLeaf signerFunc, cn string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-	// this might be replaced by certtostore store.GenerateKey()
+// CreateLeafCert generates a new ECDSA P-256 key pair and issues a leaf certificate
+// signed by the provided SignerFunc with the given common name.
+// this might be replaced by certtostore store.GenerateKey()
+func CreateLeafCert(signLeaf SignerFunc, cn string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
 	leafKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate leaf key: %w", err)
@@ -123,4 +96,36 @@ func PrintCertificateInfo(cert *x509.Certificate) {
 	fmt.Printf("  Key Usage     : %s\n", keyUsageNames(cert.KeyUsage))
 	fmt.Printf("  Ext Key Usage : %v\n", cert.ExtKeyUsage)
 	fmt.Println()
+}
+
+func TLSVersionName(version uint16) string {
+	switch version {
+	case tls.VersionTLS10:
+		return "TLS 1.0"
+	case tls.VersionTLS11:
+		return "TLS 1.1"
+	case tls.VersionTLS12:
+		return "TLS 1.2"
+	case tls.VersionTLS13:
+		return "TLS 1.3"
+	default:
+		return fmt.Sprintf("unknown (0x%04X)", version)
+	}
+}
+
+func keyUsageNames(ku x509.KeyUsage) string {
+	var names []string
+	if ku&x509.KeyUsageCertSign != 0          { names = append(names, "certSign") }
+	if ku&x509.KeyUsageCRLSign != 0           { names = append(names, "cRLSign") }
+	if ku&x509.KeyUsageDigitalSignature != 0  { names = append(names, "digitalSignature") }
+	if ku&x509.KeyUsageContentCommitment != 0 { names = append(names, "contentCommitment") }
+	if ku&x509.KeyUsageKeyEncipherment != 0   { names = append(names, "keyEncipherment") }
+	if ku&x509.KeyUsageDataEncipherment != 0  { names = append(names, "dataEncipherment") }
+	if ku&x509.KeyUsageKeyAgreement != 0      { names = append(names, "keyAgreement") }
+	if ku&x509.KeyUsageEncipherOnly != 0      { names = append(names, "encipherOnly") }
+	if ku&x509.KeyUsageDecipherOnly != 0      { names = append(names, "decipherOnly") }
+	if len(names) == 0 {
+		return "none"
+	}
+	return strings.Join(names, ", ")
 }
