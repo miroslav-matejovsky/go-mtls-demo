@@ -7,57 +7,68 @@
 go test ./...
 
 # Run tests for one package
-go test ./internal/tls/...
-go test ./internal/mtls/...
+go test ./internal/tlsmem/...
+go test ./internal/mtlsmem/...
+go test ./internal/tlsfiles/...
+go test ./internal/mtlsfiles/...
 
 # Run a single test by name
-go test ./internal/mtls/... -run TestDemo
+go test ./internal/mtlsfiles/... -run TestDemo
 
 # Run a demo
-go run cmd/main.go tls
-go run cmd/main.go mtls
+go run cmd/main.go tlsmem
+go run cmd/main.go mtlsmem
+go run cmd/main.go tlsfiles
+go run cmd/main.go mtlsfiles
 
 # Via PowerShell script
-pwsh scripts/run.ps1 tls
-pwsh scripts/run.ps1 mtls
+pwsh scripts/run.ps1 tlsmem
+pwsh scripts/run.ps1 mtlsmem
+pwsh scripts/run.ps1 tlsfiles
+pwsh scripts/run.ps1 mtlsfiles
 ```
 
 No linter is configured. No CI/CD pipeline exists.
 
 ## Architecture
 
-Two parallel, self-contained demo packages under `internal/`:
+`internal/cert` is the shared certificate package. There are four demo packages, all self-contained with the same four-file layout:
 
 ```
 internal/
-  tls/   – one-way TLS:   server authenticated, client is anonymous
-  mtls/  – mutual TLS:    both server and client authenticate each other
+  cert/        – shared: CA + leaf cert generation, PrintCertificateInfo, TLSVersionName, WriteCert, WriteKey
+  tlsmem/      – one-way TLS,   certs in memory
+  mtlsmem/     – mutual TLS,    certs in memory
+  tlsfiles/    – one-way TLS,   certs written to certs/tlsfiles/ and loaded from disk
+  mtlsfiles/   – mutual TLS,    certs written to certs/mtlsfiles/ and loaded from disk
 ```
 
-Each package has the same four-file structure:
+Each demo package has the same four-file structure:
 
 | File        | Role |
 |-------------|------|
-| `cert.go`   | CA + leaf cert generation, `PrintCertificateInfo`, `keyUsageNames` |
+
 | `server.go` | `CreateServer(...)` — builds an `httptest.Server` with TLS config |
 | `client.go` | `CreateClient(...)` — builds an `http.Client` with the right TLS config |
 | `demo.go`   | `RunDemo()` — orchestrates the full flow with narrative step output |
 
-`cert.go` is intentionally duplicated between the two packages so each package is a standalone, readable unit.
-
-`cmd/main.go` is a thin dispatcher: it reads `os.Args[1]` (`tls` or `mtls`) and calls the appropriate `RunDemo()`. No arg → usage error; unknown arg → error. No default.
+`cmd/main.go` is a thin dispatcher: it reads `os.Args[1]` (`tlsmem`, `mtlsmem`, `tlsfiles`, or `mtlsfiles`) and calls the appropriate `RunDemo()`. No arg → usage error; unknown arg → error. No default.
 
 ## Key Conventions
 
-**In-memory certificates only.** All keys and certificates are generated at runtime with `crypto/ecdsa` + `elliptic.P256()`. No PEM files, no `openssl`. Use `x509.MarshalECPrivateKey` + `pem.EncodeToMemory` to convert to bytes when needed.
+**`internal/cert` is the shared package.** `cert.CreateCA(cn string)`, `cert.CreateLeafCert(signLeaf, cn)`, `cert.PrintCertificateInfo`, and `cert.TLSVersionName` are the shared exports. Both demo packages import it as `"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"` and call `cert.CreateCA(...)` etc.
 
-**`signerFunc` closure pattern.** `CreateCa()` returns a `signerFunc` — a closure that signs leaf certificates with the CA's private key without exposing the key itself. Always pass this function through; never expose the raw CA key outside `cert.go`.
+**`signerFunc` / `cert.SignerFunc` closure pattern.** `cert.CreateCA()` returns a `SignerFunc` — a closure that signs leaf certificates with the CA's private key without exposing the key itself. Always pass this function through; never expose the raw CA key outside `internal/cert`.
 
 **`httptest` for the server.** Use `httptest.NewUnstartedServer(handler)`, assign `server.TLS`, then call `server.StartTLS()`. Never call `server.Start()` — this project only exercises TLS paths.
 
-**mTLS server requires `ClientAuth: tls.RequireAndVerifyClientCert` + `ClientCAs`.** The `CreateServer` in `mtls/` takes a `*x509.Certificate` CA argument for this reason; the `tls/` version does not.
+**File-based demos use `runDemo(baseDir string)` for testability.** `RunDemo()` calls `runDemo(certBaseDir)` where `certBaseDir = "certs/tlsfiles"` (or `mtlsfiles`). Tests call `runDemo(t.TempDir())` directly — this keeps tests self-contained without touching the repo's `certs/` directory.
 
-**mTLS client takes PEM bytes, not file paths.** `CreateClient(ca, certPem, keyPem []byte)` uses `tls.X509KeyPair` in-memory. Do not reintroduce file-based loading.
+**File-based servers use `tls.LoadX509KeyPair`; clients use `os.ReadFile` + `certpool.AppendCertsFromPEM`.** Never reintroduce in-memory PEM bytes in the files packages.
+
+**`certs/` is git-ignored.** File-based demos create it on each run; the directory structure mirrors ownership boundaries (`ca/`, `server/`, `client/`, `untrusted/`).
+
+**mTLS server requires `ClientAuth: tls.RequireAndVerifyClientCert` + `ClientCAs`.** The `CreateServer` in `mtlsmem/` and `mtlsfiles/` takes a CA argument for this reason; the `tls*` versions do not.
 
 **Narrative output style.** `RunDemo()` prints step headers (`=== Step N/M: Description ===`), one-line explanations, then tagged log lines with `[SERVER]`, `[CLIENT]`, or `[UNTRUSTED CLIENT]` prefixes. Use `fmt.Print*` throughout — never `println` (it writes to stderr and interleaves badly).
 

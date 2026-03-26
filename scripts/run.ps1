@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory, Position = 0)]
-    [ValidateSet('tls', 'mtls')]
+    [ValidateSet('tlsmem', 'mtlsmem', 'tlsfiles', 'mtlsfiles')]
     [string]$Mode
 )
 
