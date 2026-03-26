@@ -158,7 +158,7 @@ func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfi
 	fmt.Printf("Linking signed certificate to key container %q in CurrentUser\\My.\n", clientCfg.Container)
 	fmt.Println()
 
-	if err := store.StoreWithDisposition(clientCert, nil, certStoreAddReplaceExisting); err != nil {
+	if err := store.StoreWithDisposition(clientCert, operator.CACert(), certStoreAddReplaceExisting); err != nil {
 		return fmt.Errorf("error storing client certificate: %w", err)
 	}
 	fmt.Printf("  [CLIENT] Certificate stored in CurrentUser\\My\n")
