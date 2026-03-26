@@ -32,11 +32,11 @@ No linter is configured. No CI/CD pipeline exists.
 
 ## Architecture
 
-`internal/ca` is the shared certificate package. There are four demo packages, all self-contained with the same four-file layout:
+`internal/cert` is the shared certificate package. There are four demo packages, all self-contained with the same four-file layout:
 
 ```
 internal/
-  ca/          – shared: CA + leaf cert generation, PrintCertificateInfo, TLSVersionName
+  cert/        – shared: CA + leaf cert generation, PrintCertificateInfo, TLSVersionName, WriteCert, WriteKey
   tlsmem/      – one-way TLS,   certs in memory
   mtlsmem/     – mutual TLS,    certs in memory
   tlsfiles/    – one-way TLS,   certs written to certs/tlsfiles/ and loaded from disk
@@ -47,7 +47,7 @@ Each demo package has the same four-file structure:
 
 | File        | Role |
 |-------------|------|
-| `cert.go`   | PEM file write helpers (`writeCert`, `writeKey`) — file packages only |
+
 | `server.go` | `CreateServer(...)` — builds an `httptest.Server` with TLS config |
 | `client.go` | `CreateClient(...)` — builds an `http.Client` with the right TLS config |
 | `demo.go`   | `RunDemo()` — orchestrates the full flow with narrative step output |
@@ -56,9 +56,9 @@ Each demo package has the same four-file structure:
 
 ## Key Conventions
 
-**`internal/ca` is the shared package.** `ca.CreateCA(cn string)`, `ca.CreateLeafCert(signLeaf, cn)`, `ca.PrintCertificateInfo`, and `ca.TLSVersionName` are the shared exports. Both demo packages import it as `"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"` and call `ca.CreateCA(...)` etc.
+**`internal/cert` is the shared package.** `cert.CreateCA(cn string)`, `cert.CreateLeafCert(signLeaf, cn)`, `cert.PrintCertificateInfo`, and `cert.TLSVersionName` are the shared exports. Both demo packages import it as `"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"` and call `cert.CreateCA(...)` etc.
 
-**`signerFunc` / `ca.SignerFunc` closure pattern.** `ca.CreateCA()` returns a `SignerFunc` — a closure that signs leaf certificates with the CA's private key without exposing the key itself. Always pass this function through; never expose the raw CA key outside `internal/ca`.
+**`signerFunc` / `cert.SignerFunc` closure pattern.** `cert.CreateCA()` returns a `SignerFunc` — a closure that signs leaf certificates with the CA's private key without exposing the key itself. Always pass this function through; never expose the raw CA key outside `internal/cert`.
 
 **`httptest` for the server.** Use `httptest.NewUnstartedServer(handler)`, assign `server.TLS`, then call `server.StartTLS()`. Never call `server.Start()` — this project only exercises TLS paths.
 

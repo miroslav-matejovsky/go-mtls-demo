@@ -1,4 +1,4 @@
-package ca
+package cert
 
 import (
 	"crypto"
@@ -8,9 +8,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"math/big"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -85,17 +88,43 @@ func CreateLeafCert(signLeaf SignerFunc, cn string) (*x509.Certificate, *ecdsa.P
 	return leafCert, leafKey, nil
 }
 
-func PrintCertificateInfo(cert *x509.Certificate) {
-	fmt.Printf("  Subject       : %s\n", cert.Subject.CommonName)
-	fmt.Printf("  Issuer        : %s\n", cert.Issuer.CommonName)
-	fmt.Printf("  Serial        : %s\n", cert.SerialNumber)
+func PrintCertificateInfo(c *x509.Certificate) {
+	fmt.Printf("  Subject       : %s\n", c.Subject.CommonName)
+	fmt.Printf("  Issuer        : %s\n", c.Issuer.CommonName)
+	fmt.Printf("  Serial        : %s\n", c.SerialNumber)
 	fmt.Printf("  Valid         : %s → %s\n",
-		cert.NotBefore.Format("2006-01-02 15:04 UTC"),
-		cert.NotAfter.Format("2006-01-02 15:04 UTC"))
-	fmt.Printf("  Is CA         : %t\n", cert.IsCA)
-	fmt.Printf("  Key Usage     : %s\n", keyUsageNames(cert.KeyUsage))
-	fmt.Printf("  Ext Key Usage : %v\n", cert.ExtKeyUsage)
+		c.NotBefore.Format("2006-01-02 15:04 UTC"),
+		c.NotAfter.Format("2006-01-02 15:04 UTC"))
+	fmt.Printf("  Is CA         : %t\n", c.IsCA)
+	fmt.Printf("  Key Usage     : %s\n", keyUsageNames(c.KeyUsage))
+	fmt.Printf("  Ext Key Usage : %v\n", c.ExtKeyUsage)
 	fmt.Println()
+}
+
+// WriteCert writes a certificate to a PEM file, creating parent directories as needed.
+func WriteCert(path string, c *x509.Certificate) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer f.Close()
+	return pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: c.Raw})
+}
+
+// WriteKey writes a DER-encoded EC private key to a PEM file, creating parent directories as needed.
+func WriteKey(path string, keyDER []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer f.Close()
+	return pem.Encode(f, &pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
 }
 
 func TLSVersionName(version uint16) string {

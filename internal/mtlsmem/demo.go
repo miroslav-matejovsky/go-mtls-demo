@@ -8,7 +8,7 @@ import (
 	"io"
 	"log"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
 )
 
 func RunDemo() error {
@@ -17,33 +17,33 @@ func RunDemo() error {
 	fmt.Println("Both parties trust this CA and will accept any certificate it has signed.")
 	fmt.Println()
 
-	caCert, signLeaf, err := ca.CreateCA("go mTLS Demo CA")
+	caCert, signLeaf, err := cert.CreateCA("go mTLS Demo CA")
 	if err != nil {
 		return fmt.Errorf("error creating CA: %w", err)
 	}
-	ca.PrintCertificateInfo(caCert)
+	cert.PrintCertificateInfo(caCert)
 
 	fmt.Println("=== Step 2/5: Generate Server Certificate (signed by CA) ===")
 	fmt.Println("The server presents this certificate to the client during the mTLS handshake.")
-	fmt.Println("The client verifies its signature chain leads back to the trusted CA.")
+	fmt.Println("The client verifies its signature chain leads back to the trusted cert.")
 	fmt.Println()
 
-	serverCert, serverPrivateKey, err := ca.CreateLeafCert(signLeaf, "go mTLS Demo Server")
+	serverCert, serverPrivateKey, err := cert.CreateLeafCert(signLeaf, "go mTLS Demo Server")
 	if err != nil {
 		return fmt.Errorf("error creating server certificate: %w", err)
 	}
-	ca.PrintCertificateInfo(serverCert)
+	cert.PrintCertificateInfo(serverCert)
 
 	fmt.Println("=== Step 3/5: Generate Client Certificate (signed by CA) ===")
 	fmt.Println("KEY DIFFERENCE from plain TLS: the client also has a certificate.")
-	fmt.Println("The server will require this certificate and verify it against the trusted CA.")
+	fmt.Println("The server will require this certificate and verify it against the trusted cert.")
 	fmt.Println()
 
-	clientCert, clientPrivateKey, err := ca.CreateLeafCert(signLeaf, "go mTLS Demo Client")
+	clientCert, clientPrivateKey, err := cert.CreateLeafCert(signLeaf, "go mTLS Demo Client")
 	if err != nil {
 		return fmt.Errorf("error creating client certificate: %w", err)
 	}
-	ca.PrintCertificateInfo(clientCert)
+	cert.PrintCertificateInfo(clientCert)
 
 	serverPrivPemBytes, err := x509.MarshalECPrivateKey(serverPrivateKey)
 	if err != nil {
@@ -76,7 +76,7 @@ func RunDemo() error {
 
 	fmt.Println("=== Step 5/6: Make request over mTLS (trusted client) ===")
 	fmt.Println("Client config: trusts the CA AND sends its own certificate (mutual TLS).")
-	fmt.Println("Authentication: client verifies server cert → CA   |   server verifies client cert → CA.")
+	fmt.Println("Authentication: client verifies server cert → CA   |   server verifies client cert → cert.")
 	fmt.Println()
 
 	client, err := CreateClient(caCert, clientCertPem, clientPrivKeyPem)
@@ -94,7 +94,7 @@ func RunDemo() error {
 	fmt.Printf("[CLIENT] Server certificate verified: %s (issued by %s)\n",
 		resp.TLS.PeerCertificates[0].Subject.CommonName, resp.TLS.PeerCertificates[0].Issuer.CommonName)
 	fmt.Printf("[CLIENT] Handshake complete  — version: %s, cipher suite: %s\n",
-		ca.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
+		cert.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
 	fmt.Println("[CLIENT] Response:", resp.Status)
 	fmt.Println()
 
@@ -103,11 +103,11 @@ func RunDemo() error {
 	fmt.Println("The server must reject the connection during the TLS handshake.")
 	fmt.Println()
 
-	_, untrustedSignLeaf, err := ca.CreateCA("go mTLS Untrusted CA")
+	_, untrustedSignLeaf, err := cert.CreateCA("go mTLS Untrusted CA")
 	if err != nil {
 		return fmt.Errorf("error creating untrusted CA: %w", err)
 	}
-	untrustedClientCert, untrustedClientKey, err := ca.CreateLeafCert(untrustedSignLeaf, "go mTLS Untrusted Client")
+	untrustedClientCert, untrustedClientKey, err := cert.CreateLeafCert(untrustedSignLeaf, "go mTLS Untrusted Client")
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client certificate: %w", err)
 	}
@@ -130,7 +130,7 @@ func RunDemo() error {
 	_, err = untrustedClient.Get(server.URL)
 	if err != nil {
 		fmt.Printf("[UNTRUSTED CLIENT] Connection rejected — %s\n", err)
-		fmt.Println("[UNTRUSTED CLIENT] Expected: server refused the certificate because it was not signed by the trusted CA.")
+		fmt.Println("[UNTRUSTED CLIENT] Expected: server refused the certificate because it was not signed by the trusted cert.")
 	} else {
 		return fmt.Errorf("expected untrusted client to be rejected, but request succeeded")
 	}

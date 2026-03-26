@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
 )
 
 const certBaseDir = "certs/tlsfiles"
@@ -16,7 +16,7 @@ func RunDemo() error {
 }
 
 func runDemo(baseDir string) error {
-	caCertPath     := filepath.Join(baseDir, "ca", "ca.crt")
+	caCertPath     := filepath.Join(baseDir, "ca", "cert.crt")
 	serverCertPath := filepath.Join(baseDir, "server", "server.crt")
 	serverKeyPath  := filepath.Join(baseDir, "server", "server.key")
 
@@ -26,12 +26,12 @@ func runDemo(baseDir string) error {
 	fmt.Println("The private key never leaves the CA machine — it is NOT written to disk here.")
 	fmt.Println()
 
-	caCert, signLeaf, err := ca.CreateCA("go TLS Demo CA")
+	caCert, signLeaf, err := cert.CreateCA("go TLS Demo CA")
 	if err != nil {
 		return fmt.Errorf("error creating CA: %w", err)
 	}
-	ca.PrintCertificateInfo(caCert)
-	if err := writeCert(caCertPath, caCert); err != nil {
+	cert.PrintCertificateInfo(caCert)
+	if err := cert.WriteCert(caCertPath, caCert); err != nil {
 		return fmt.Errorf("error writing CA certificate: %w", err)
 	}
 	fmt.Printf("  [CA] Certificate → %s\n", caCertPath)
@@ -42,20 +42,20 @@ func runDemo(baseDir string) error {
 	fmt.Println("The private key is generated locally and stays in the server's own directory.")
 	fmt.Println()
 
-	serverCert, serverPrivateKey, err := ca.CreateLeafCert(signLeaf, "go TLS Demo Server")
+	serverCert, serverPrivateKey, err := cert.CreateLeafCert(signLeaf, "go TLS Demo Server")
 	if err != nil {
 		return fmt.Errorf("error creating server certificate: %w", err)
 	}
-	ca.PrintCertificateInfo(serverCert)
+	cert.PrintCertificateInfo(serverCert)
 
 	serverKeyBytes, err := x509.MarshalECPrivateKey(serverPrivateKey)
 	if err != nil {
 		return fmt.Errorf("error marshaling server key: %w", err)
 	}
-	if err := writeCert(serverCertPath, serverCert); err != nil {
+	if err := cert.WriteCert(serverCertPath, serverCert); err != nil {
 		return fmt.Errorf("error writing server certificate: %w", err)
 	}
-	if err := writeKey(serverKeyPath, serverKeyBytes); err != nil {
+	if err := cert.WriteKey(serverKeyPath, serverKeyBytes); err != nil {
 		return fmt.Errorf("error writing server key: %w", err)
 	}
 	fmt.Printf("  [SERVER] Certificate → %s\n", serverCertPath)
@@ -95,7 +95,7 @@ func runDemo(baseDir string) error {
 	defer resp.Body.Close()
 
 	fmt.Printf("[CLIENT] Handshake complete  — version: %s, cipher suite: %s\n",
-		ca.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
+		cert.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
 	fmt.Println("[CLIENT] Response:", resp.Status)
 	return nil
 }

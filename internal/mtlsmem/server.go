@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
 )
 
 func CreateServer(certPem, privateKeyPem []byte, caCert *x509.Certificate) (*httptest.Server, error) {
@@ -30,7 +30,7 @@ func CreateServer(certPem, privateKeyPem []byte, caCert *x509.Certificate) (*htt
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tlsState := r.TLS
 		fmt.Printf("[SERVER] Received request over mTLS — version: %s, cipher suite: %s\n",
-			ca.TLSVersionName(tlsState.Version), tls.CipherSuiteName(tlsState.CipherSuite))
+			cert.TLSVersionName(tlsState.Version), tls.CipherSuiteName(tlsState.CipherSuite))
 		if len(tlsState.PeerCertificates) > 0 {
 			fmt.Printf("[SERVER] Client certificate: %s (issued by %s)\n",
 				tlsState.PeerCertificates[0].Subject, tlsState.PeerCertificates[0].Issuer)
