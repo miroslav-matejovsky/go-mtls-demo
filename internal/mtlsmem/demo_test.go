@@ -1,4 +1,4 @@
-package mtls
+package mtlsmem
 
 import (
 	"testing"

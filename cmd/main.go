@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/mtls"
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tls"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/mtlsmem"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tlsmem"
 )
 
 func main() {
@@ -17,9 +17,9 @@ func main() {
 	var err error
 	switch os.Args[1] {
 	case "tls":
-		err = tls.RunDemo()
+		err = tlsmem.RunDemo()
 	case "mtls":
-		err = mtls.RunDemo()
+		err = mtlsmem.RunDemo()
 	default:
 		fmt.Fprintf(os.Stderr, "unknown mode %q — use \"tls\" or \"mtls\"\n", os.Args[1])
 		os.Exit(1)
