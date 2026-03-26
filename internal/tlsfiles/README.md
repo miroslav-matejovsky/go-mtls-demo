@@ -3,7 +3,7 @@
 Demonstrates a TLS handshake where only the **server** is authenticated.  
 Certificates are written to disk and loaded from files — showing realistic file ownership.
 
-```
+```text
 Client ──── verify server cert ────► Server
 ```
 
@@ -17,12 +17,12 @@ Certificate files are written to `certs/tlsfiles/` (git-ignored) and recreated o
 
 ## What happens
 
-| Step | What |
-|------|------|
-| 1/4 | Generate CA — write `ca/ca.crt` to disk (private key stays in memory) |
-| 2/4 | Generate server cert — write `server/server.crt` and `server/server.key` |
-| 3/4 | Start HTTPS server loading cert from `server/` directory |
-| 4/4 | Client loads `ca/ca.crt` and connects — server accepts any client |
+| Step | What                                                                     |
+| ---- | ------------------------------------------------------------------------ |
+| 1/4  | Generate CA — write `ca/ca.crt` to disk (private key stays in memory)    |
+| 2/4  | Generate server cert — write `server/server.crt` and `server/server.key` |
+| 3/4  | Start HTTPS server loading cert from `server/` directory                 |
+| 4/4  | Client loads `ca/ca.crt` and connects — server accepts any client        |
 
 ## File layout
 

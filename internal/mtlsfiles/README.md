@@ -3,7 +3,7 @@
 Demonstrates a mutual TLS handshake where **both** client and server are authenticated.  
 Certificates are written to separate directories — each representing a different party's file system.
 
-```
+```text
 Client ──── verify server cert ────► Server
 Client ◄─── verify client cert ───── Server
 ```
@@ -18,14 +18,14 @@ Certificate files are written to `certs/mtlsfiles/` (git-ignored) and recreated 
 
 ## What happens
 
-| Step | What |
-|------|------|
-| 1/6 | Generate CA, server cert, and client cert — write to separate directories |
-| 2/6 | Start HTTPS server loading cert + CA from `server/` |
-| 3/6 | Trusted client loads cert + CA from `client/` — both sides verify each other |
-| 4/6 | Generate untrusted client cert (different CA) — write to `untrusted/` |
-| 5/6 | Untrusted client is rejected by the server |
-| 6/6 | Print file layout showing ownership boundaries |
+| Step | What                                                                         |
+| ---- | ---------------------------------------------------------------------------- |
+| 1/6  | Generate CA, server cert, and client cert — write to separate directories    |
+| 2/6  | Start HTTPS server loading cert + CA from `server/`                          |
+| 3/6  | Trusted client loads cert + CA from `client/` — both sides verify each other |
+| 4/6  | Generate untrusted client cert (different CA) — write to `untrusted/`        |
+| 5/6  | Untrusted client is rejected by the server                                   |
+| 6/6  | Print file layout showing ownership boundaries                               |
 
 ## File layout
 

@@ -3,7 +3,7 @@
 Demonstrates a TLS handshake where only the **server** is authenticated.  
 All certificates are generated in memory at runtime — no files, no `openssl`.
 
-```
+```text
 Client ──── verify server cert ────► Server
 ```
 
@@ -15,12 +15,12 @@ go run cmd/main.go tlsmem
 
 ## What happens
 
-| Step | What |
-|------|------|
-| 1/4 | Generate a self-signed CA |
-| 2/4 | Generate a server certificate signed by the CA |
-| 3/4 | Start HTTPS server with the server certificate |
-| 4/4 | Client trusts the CA and connects — server accepts any client |
+| Step | What                                                          |
+| ---- | ------------------------------------------------------------- |
+| 1/4  | Generate a self-signed CA                                     |
+| 2/4  | Generate a server certificate signed by the CA                |
+| 3/4  | Start HTTPS server with the server certificate                |
+| 4/4  | Client trusts the CA and connects — server accepts any client |
 
 ## Sample output
 
@@ -67,7 +67,7 @@ Authentication: client verifies server cert → CA   |   server trusts any clien
 
 ## Certificate structure
 
-```
+```text
 CA (self-signed)
 └── Server cert (signed by CA)
 ```

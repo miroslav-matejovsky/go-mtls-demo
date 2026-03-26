@@ -4,7 +4,7 @@ Hands-on walkthroughs of one-way TLS and mutual TLS (mTLS) in Go using ECDSA P-2
 
 ## Concepts
 
-```
+```text
 TLS (one-way)   Client ──── verify server cert ────► Server
 mTLS (mutual)   Client ──── verify server cert ────► Server
                 Client ◄─── verify client cert ───── Server
@@ -12,12 +12,12 @@ mTLS (mutual)   Client ──── verify server cert ────► Server
 
 ## Scenarios
 
-| Package | Mode | Certs |
-|---------|------|-------|
-| [tlsmem](internal/tlsmem/README.md) | One-way TLS | In memory |
-| [mtlsmem](internal/mtlsmem/README.md) | Mutual TLS | In memory |
-| [tlsfiles](internal/tlsfiles/README.md) | One-way TLS | Written to `certs/tlsfiles/` |
-| [mtlsfiles](internal/mtlsfiles/README.md) | Mutual TLS | Written to `certs/mtlsfiles/` |
+| Package                                   | Mode        | Certs                         |
+| ----------------------------------------- | ----------- | ----------------------------- |
+| [tlsmem](internal/tlsmem/README.md)       | One-way TLS | In memory                     |
+| [mtlsmem](internal/mtlsmem/README.md)     | Mutual TLS  | In memory                     |
+| [tlsfiles](internal/tlsfiles/README.md)   | One-way TLS | Written to `certs/tlsfiles/`  |
+| [mtlsfiles](internal/mtlsfiles/README.md) | Mutual TLS  | Written to `certs/mtlsfiles/` |
 
 ## Running
 

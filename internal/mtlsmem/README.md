@@ -3,7 +3,7 @@
 Demonstrates a mutual TLS handshake where **both** client and server are authenticated.  
 All certificates are generated in memory at runtime — no files, no `openssl`.
 
-```
+```text
 Client ──── verify server cert ────► Server
 Client ◄─── verify client cert ───── Server
 ```
@@ -16,14 +16,14 @@ go run cmd/main.go mtlsmem
 
 ## What happens
 
-| Step | What |
-|------|------|
-| 1/5 | Generate a self-signed CA |
-| 2/5 | Generate a server certificate signed by the CA |
-| 3/5 | Generate a client certificate signed by the CA |
-| 4/5 | Start HTTPS server requiring a valid client certificate |
-| 5/6 | Trusted client connects — both sides verify each other |
-| 6/6 | Untrusted client (different CA) is rejected |
+| Step | What                                                    |
+| ---- | ------------------------------------------------------- |
+| 1/5  | Generate a self-signed CA                               |
+| 2/5  | Generate a server certificate signed by the CA          |
+| 3/5  | Generate a client certificate signed by the CA          |
+| 4/5  | Start HTTPS server requiring a valid client certificate |
+| 5/6  | Trusted client connects — both sides verify each other  |
+| 6/6  | Untrusted client (different CA) is rejected             |
 
 ## Sample output
 
@@ -58,7 +58,7 @@ The server will require this certificate and verify it against the trusted CA.
 
 ## Certificate structure
 
-```
+```text
 CA (self-signed)
 ├── Server cert (signed by CA)
 └── Client cert (signed by CA)
