@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"time"
 
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
 )
@@ -15,7 +16,7 @@ func RunDemo() error {
 	fmt.Println("Its certificate is given to the client so it can verify the server's identity.")
 	fmt.Println()
 
-	caCert, signLeaf, err := cert.CreateCA("go TLS Demo CA")
+	caCert, signLeaf, err := cert.CreateCA("go TLS Demo CA", 24*time.Hour)
 	if err != nil {
 		return fmt.Errorf("error creating CA: %w", err)
 	}

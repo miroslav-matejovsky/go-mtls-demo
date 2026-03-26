@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"path/filepath"
 	"strings"
 
 	"github.com/google/certtostore"
@@ -17,45 +16,45 @@ import (
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pwsh"
 )
 
-const (
-	certBaseDir   = "certs/mtlstpm"
-	containerName = "go-mtls-demo-client"
-	clientCN      = "go mTLS TPM Demo Client"
-	caCN          = "go mTLS TPM Demo CA"
+// certStoreAddReplaceExisting is the Windows CryptoAPI CERT_STORE_ADD_REPLACE_EXISTING
+// disposition constant. It replaces any existing cert with the same subject/issuer
+// rather than silently reusing the old one — ensures re-runs pick up the new cert.
+const certStoreAddReplaceExisting = 3
 
-	// certStoreAddReplaceExisting is the Windows CryptoAPI CERT_STORE_ADD_REPLACE_EXISTING
-	// disposition constant. It replaces any existing cert with the same subject/issuer
-	// rather than silently reusing the old one — ensures re-runs pick up the new cert.
-	certStoreAddReplaceExisting = 3
-)
-
-func RunDemo() error {
-	return runDemo(certBaseDir)
+func RunDemo(configPath string) error {
+	if configPath == "" {
+		configPath = defaultConfigPath
+	}
+	cfg, err := LoadConfig(configPath)
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+	return runDemo(cfg)
 }
 
-func runDemo(baseDir string) error {
-	caCertPath      := filepath.Join(baseDir, "ca", "cert.crt")
-	serverCertPath  := filepath.Join(baseDir, "server", "server.crt")
-	serverKeyPath   := filepath.Join(baseDir, "server", "server.key")
-	serverCACertPath := filepath.Join(baseDir, "server", "ca.crt")
+func runDemo(cfg Config) error {
+	validity, err := cfg.CA.ParseValidity()
+	if err != nil {
+		return err
+	}
 
 	// ── Step 1 ──────────────────────────────────────────────────────────────
 	fmt.Println("=== Step 1/6: Generate CA and Server certificate ===")
 	fmt.Println("CA is in-memory only — its private key is never written to disk.")
-	fmt.Printf("Server cert and CA distribution copy written to: %s\n", filepath.Join(baseDir, "server"))
+	fmt.Printf("Server cert and CA distribution copy written to: %s\n", cfg.Server.CertFile)
 	fmt.Println()
 
-	caCert, signLeaf, err := cert.CreateCA(caCN)
+	caCert, signLeaf, err := cert.CreateCA(cfg.CA.CN, validity)
 	if err != nil {
 		return fmt.Errorf("error creating CA: %w", err)
 	}
 	cert.PrintCertificateInfo(caCert)
 
-	if err := cert.WriteCert(caCertPath, caCert); err != nil {
+	if err := cert.WriteCert(cfg.CA.CertFile, caCert); err != nil {
 		return fmt.Errorf("error writing CA cert: %w", err)
 	}
 
-	serverCert, serverKey, err := cert.CreateLeafCert(signLeaf, "go mTLS TPM Demo Server")
+	serverCert, serverKey, err := cert.CreateLeafCert(signLeaf, cfg.Server.CN)
 	if err != nil {
 		return fmt.Errorf("error creating server certificate: %w", err)
 	}
@@ -65,19 +64,19 @@ func runDemo(baseDir string) error {
 	if err != nil {
 		return fmt.Errorf("error marshaling server key: %w", err)
 	}
-	if err := cert.WriteCert(serverCertPath, serverCert); err != nil {
+	if err := cert.WriteCert(cfg.Server.CertFile, serverCert); err != nil {
 		return fmt.Errorf("error writing server certificate: %w", err)
 	}
-	if err := cert.WriteKey(serverKeyPath, serverKeyBytes); err != nil {
+	if err := cert.WriteKey(cfg.Server.KeyFile, serverKeyBytes); err != nil {
 		return fmt.Errorf("error writing server key: %w", err)
 	}
-	if err := cert.WriteCert(serverCACertPath, caCert); err != nil {
+	if err := cert.WriteCert(cfg.Server.CACertFile, caCert); err != nil {
 		return fmt.Errorf("error writing CA cert to server directory: %w", err)
 	}
-	fmt.Printf("  [SERVER] Certificate → %s\n", serverCertPath)
-	fmt.Printf("  [SERVER] Private key  → %s\n", serverKeyPath)
-	fmt.Printf("  [SERVER] CA cert      → %s\n", serverCACertPath)
-	fmt.Printf("  [CA]     Reference    → %s\n", caCertPath)
+	fmt.Printf("  [SERVER] Certificate → %s\n", cfg.Server.CertFile)
+	fmt.Printf("  [SERVER] Private key  → %s\n", cfg.Server.KeyFile)
+	fmt.Printf("  [SERVER] CA cert      → %s\n", cfg.Server.CACertFile)
+	fmt.Printf("  [CA]     Reference    → %s\n", cfg.CA.CertFile)
 	fmt.Println()
 
 	// ── Step 2 ──────────────────────────────────────────────────────────────
@@ -113,15 +112,15 @@ func runDemo(baseDir string) error {
 
 	// ── Step 3 ──────────────────────────────────────────────────────────────
 	fmt.Println("=== Step 3/6: Generate client key in Windows Certificate Store ===")
-	fmt.Printf("Opening CurrentUser\\My via provider=%q  container=%q\n", provider, containerName)
+	fmt.Printf("Opening CurrentUser\\My via provider=%q  container=%q\n", provider, cfg.Client.Container)
 	fmt.Println("Generating an ECDSA P-256 key pair. The private key is created by the provider.")
 	fmt.Println("certtostore returns a crypto.Signer — operations use the provider, raw bytes stay inside.")
 	fmt.Println()
 
 	store, err := certtostore.OpenWinCertStoreCurrentUser(
 		provider,
-		containerName,
-		[]string{"CN=" + caCN},
+		cfg.Client.Container,
+		[]string{"CN=" + cfg.CA.CN},
 		nil,
 		false,
 	)
@@ -140,7 +139,7 @@ func runDemo(baseDir string) error {
 	fmt.Printf("  [CLIENT] Key generated — algorithm: ECDSA P-256, provider: %s\n", provider)
 
 	// Use the TPM key's public key to sign a leaf cert with our CA.
-	clientCert, err := signLeaf(signer.Public(), clientCN)
+	clientCert, err := signLeaf(signer.Public(), cfg.Client.CN)
 	if err != nil {
 		return fmt.Errorf("error signing client certificate: %w", err)
 	}
@@ -150,7 +149,7 @@ func runDemo(baseDir string) error {
 
 	// ── Step 4 ──────────────────────────────────────────────────────────────
 	fmt.Println("=== Step 4/6: Import client certificate into Windows Certificate Store ===")
-	fmt.Printf("Linking signed certificate to key container %q in CurrentUser\\My.\n", containerName)
+	fmt.Printf("Linking signed certificate to key container %q in CurrentUser\\My.\n", cfg.Client.Container)
 	fmt.Println()
 
 	if err := store.StoreWithDisposition(clientCert, nil, certStoreAddReplaceExisting); err != nil {
@@ -158,7 +157,7 @@ func runDemo(baseDir string) error {
 	}
 	fmt.Printf("  [CLIENT] Certificate stored in CurrentUser\\My\n")
 
-	if storeInfo, err := pwsh.ShowCertsInStore(clientCN); err != nil {
+	if storeInfo, err := pwsh.ShowCertsInStore(cfg.Client.CN); err != nil {
 		fmt.Printf("  [CLIENT] Warning: could not query cert store — %v\n", err)
 	} else if storeInfo != "" {
 		fmt.Println("  [CLIENT] Cert store entry:")
@@ -172,7 +171,7 @@ func runDemo(baseDir string) error {
 	// from the CertContext. This is what a real application does on startup —
 	// it has no signer in memory, it must re-derive it from the store.
 	fmt.Println("  [CLIENT] Simulating runtime key lookup (re-deriving key from CertContext) ...")
-	storedCert, ctx, _, err := store.CertByCommonName(clientCN)
+	storedCert, ctx, _, err := store.CertByCommonName(cfg.Client.CN)
 	if err != nil {
 		return fmt.Errorf("error looking up cert from store by CN: %w", err)
 	}
@@ -187,18 +186,23 @@ func runDemo(baseDir string) error {
 
 	// ── Step 5 ──────────────────────────────────────────────────────────────
 	fmt.Println("=== Step 5/6: Start mTLS server and make trusted request ===")
-	fmt.Printf("Server loads certificates from disk: %s\n", filepath.Join(baseDir, "server"))
+	fmt.Printf("Server loads certificates from disk: %s\n", cfg.Server.CertFile)
 	fmt.Printf("Client uses key from Windows cert store (provider: %s) — no key file on disk.\n", provider)
 	fmt.Println()
 
-	server, err := CreateServer(serverCertPath, serverKeyPath, serverCACertPath)
+	server, err := CreateServer(cfg.Server.CertFile, cfg.Server.KeyFile, cfg.Server.CACertFile)
 	if err != nil {
 		return fmt.Errorf("error creating server: %w", err)
 	}
-	server.Config.ErrorLog = log.New(io.Discard, "", 0)
-	server.StartTLS()
+	server.ErrorLog = log.New(io.Discard, "", 0)
+	ln, err := tls.Listen("tcp", cfg.Server.Address, server.TLSConfig)
+	if err != nil {
+		return fmt.Errorf("error starting TLS listener on %s: %w", cfg.Server.Address, err)
+	}
+	go server.Serve(ln) //nolint:errcheck
 	defer server.Close()
-	fmt.Printf("[SERVER] Listening on %s\n", server.URL)
+	serverURL := "https://" + ln.Addr().String()
+	fmt.Printf("[SERVER] Listening on %s\n", serverURL)
 	fmt.Println()
 
 	client, err := CreateClient(caCert, storeKey, storedCert)
@@ -206,8 +210,8 @@ func runDemo(baseDir string) error {
 		return fmt.Errorf("error creating client: %w", err)
 	}
 
-	fmt.Printf("[CLIENT] GET %s\n", server.URL)
-	resp, err := client.Get(server.URL)
+	fmt.Printf("[CLIENT] GET %s\n", serverURL)
+	resp, err := client.Get(serverURL)
 	if err != nil {
 		return fmt.Errorf("error making GET request: %w", err)
 	}
@@ -227,11 +231,11 @@ func runDemo(baseDir string) error {
 	fmt.Println("The private key is in-memory (no cert store). The server must reject the connection.")
 	fmt.Println()
 
-	_, untrustedSign, err := cert.CreateCA("go mTLS TPM Untrusted CA")
+	_, untrustedSign, err := cert.CreateCA(cfg.Untrusted.CACN, validity)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted CA: %w", err)
 	}
-	untrustedCert, untrustedKey, err := cert.CreateLeafCert(untrustedSign, "go mTLS TPM Untrusted Client")
+	untrustedCert, untrustedKey, err := cert.CreateLeafCert(untrustedSign, cfg.Untrusted.CN)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client certificate: %w", err)
 	}
@@ -244,8 +248,8 @@ func runDemo(baseDir string) error {
 		return fmt.Errorf("error creating untrusted client: %w", err)
 	}
 
-	fmt.Printf("[UNTRUSTED CLIENT] GET %s\n", server.URL)
-	_, err = untrustedClient.Get(server.URL)
+	fmt.Printf("[UNTRUSTED CLIENT] GET %s\n", serverURL)
+	_, err = untrustedClient.Get(serverURL)
 	if err != nil {
 		fmt.Printf("[UNTRUSTED CLIENT] Connection rejected — %s\n", err)
 		fmt.Println("[UNTRUSTED CLIENT] Expected: server refused client cert — not signed by the trusted CA.")
@@ -254,7 +258,7 @@ func runDemo(baseDir string) error {
 	}
 	fmt.Println()
 
-	printCleanupInstructions(provider, containerName, clientCN)
+	printCleanupInstructions(provider, cfg.Client.Container, cfg.Client.CN)
 	return nil
 }
 
@@ -273,3 +277,4 @@ func printCleanupInstructions(provider, container, cn string) {
 	fmt.Printf("  $k = [System.Security.Cryptography.CngKey]::Open('%s', $p)\n", container)
 	fmt.Println("  $k.Delete()")
 }
+

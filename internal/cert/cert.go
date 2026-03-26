@@ -21,9 +21,10 @@ import (
 // SignerFunc signs a public key with the given CN and returns a leaf certificate.
 type SignerFunc func(pub crypto.PublicKey, cn string) (*x509.Certificate, error)
 
-// CreateCA creates a self-signed CA certificate with the given common name.
+// CreateCA creates a self-signed CA certificate with the given common name and validity duration.
+// The same validity is applied to any leaf certificates signed by the returned SignerFunc.
 // It returns the CA certificate and a SignerFunc closure for issuing leaf certificates.
-func CreateCA(cn string) (*x509.Certificate, SignerFunc, error) {
+func CreateCA(cn string, validity time.Duration) (*x509.Certificate, SignerFunc, error) {
 	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate CA key: %w", err)
@@ -32,7 +33,7 @@ func CreateCA(cn string) (*x509.Certificate, SignerFunc, error) {
 		SerialNumber:          big.NewInt(1),
 		Subject:               pkix.Name{CommonName: cn},
 		NotBefore:             time.Now().Add(-time.Hour),
-		NotAfter:              time.Now().Add(24 * time.Hour),
+		NotAfter:              time.Now().Add(validity),
 		IsCA:                  true,
 		BasicConstraintsValid: true,
 		// ExtKeyUsageClientAuth - allows the certificate to be used for client authentication in TLS
@@ -55,7 +56,7 @@ func CreateCA(cn string) (*x509.Certificate, SignerFunc, error) {
 			SerialNumber: big.NewInt(2),
 			Subject:      pkix.Name{CommonName: cn},
 			NotBefore:    time.Now().Add(-time.Hour),
-			NotAfter:     time.Now().Add(24 * time.Hour),
+			NotAfter:     time.Now().Add(validity),
 			ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 			KeyUsage:     x509.KeyUsageDigitalSignature,
 			IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},

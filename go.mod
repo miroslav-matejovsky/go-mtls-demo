@@ -3,6 +3,7 @@ module github.com/miroslav-matejovsky/go-mtls-demo
 go 1.26.1
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/google/certtostore v1.0.6
 	github.com/stretchr/testify v1.11.1
 )

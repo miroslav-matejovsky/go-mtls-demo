@@ -1,0 +1,13 @@
+[ca]
+cn        = "go TLS Demo CA"
+cert_file = "certs/tlsfiles/ca/cert.crt"
+validity  = "24h"
+
+[server]
+address   = "127.0.0.1:8443"
+cn        = "go TLS Demo Server"
+cert_file = "certs/tlsfiles/server/server.crt"
+key_file  = "certs/tlsfiles/server/server.key"
+
+[client]
+ca_cert_file = "certs/tlsfiles/client/ca.crt"

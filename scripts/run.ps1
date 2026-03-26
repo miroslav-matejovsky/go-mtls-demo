@@ -4,4 +4,4 @@ param(
     [string]$Mode
 )
 
-go run cmd/main.go $Mode
+go run ./cmd/ $Mode

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -12,24 +13,34 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: go-mtls-demo <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlstpm>")
+		fmt.Fprintln(os.Stderr, "usage: go-mtls-demo <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlstpm> [--config path]")
+		os.Exit(1)
+	}
+
+	mode := os.Args[1]
+
+	// Parse any flags that follow the mode argument.
+	fs := flag.NewFlagSet(mode, flag.ExitOnError)
+	configPath := fs.String("config", "", "path to TOML config file (overrides built-in default)")
+	if err := fs.Parse(os.Args[2:]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
 	var err error
-	switch os.Args[1] {
+	switch mode {
 	case "tlsmem":
 		err = tlsmem.RunDemo()
 	case "mtlsmem":
 		err = mtlsmem.RunDemo()
 	case "tlsfiles":
-		err = tlsfiles.RunDemo()
+		err = tlsfiles.RunDemo(*configPath)
 	case "mtlsfiles":
-		err = mtlsfiles.RunDemo()
+		err = mtlsfiles.RunDemo(*configPath)
 	case "mtlstpm":
-		err = runMtlsTpmDemo()
+		err = runMtlsTpmDemo(*configPath)
 	default:
-		fmt.Fprintf(os.Stderr, "unknown mode %q — use \"tlsmem\", \"mtlsmem\", \"tlsfiles\", \"mtlsfiles\", or \"mtlstpm\"\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "unknown mode %q — use \"tlsmem\", \"mtlsmem\", \"tlsfiles\", \"mtlsfiles\", or \"mtlstpm\"\n", mode)
 		os.Exit(1)
 	}
 

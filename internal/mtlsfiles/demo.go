@@ -11,56 +11,53 @@ import (
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
 )
 
-const certBaseDir = "certs/mtlsfiles"
-
-func RunDemo() error {
-	return runDemo(certBaseDir)
+func RunDemo(configPath string) error {
+	if configPath == "" {
+		configPath = defaultConfigPath
+	}
+	cfg, err := LoadConfig(configPath)
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+	return runDemo(cfg)
 }
 
-func runDemo(baseDir string) error {
-	caCertPath      := filepath.Join(baseDir, "ca", "cert.crt")
-	serverCertPath  := filepath.Join(baseDir, "server", "server.crt")
-	serverKeyPath   := filepath.Join(baseDir, "server", "server.key")
-	// Each party stores its own copy of the CA cert — distributed by the CA operator.
-	// On separate machines none of these directories are shared.
-	serverCACertPath   := filepath.Join(baseDir, "server", "ca.crt")
-	clientCertPath     := filepath.Join(baseDir, "client", "client.crt")
-	clientKeyPath      := filepath.Join(baseDir, "client", "client.key")
-	clientCACertPath   := filepath.Join(baseDir, "client", "ca.crt")
-	untrustedCertPath  := filepath.Join(baseDir, "untrusted", "client.crt")
-	untrustedKeyPath   := filepath.Join(baseDir, "untrusted", "client.key")
-	untrustedCACertPath := filepath.Join(baseDir, "untrusted", "ca.crt")
+func runDemo(cfg Config) error {
+	validity, err := cfg.CA.ParseValidity()
+	if err != nil {
+		return err
+	}
 
 	fmt.Println("=== Step 1/6: Generate CA, Server, and Client certificates ===")
 	fmt.Println("Each party owns its own directory — in production they never share private keys:")
-	fmt.Printf("  %s  — Certificate Authority\n", filepath.Join(baseDir, "ca"))
-	fmt.Printf("  %s  — Server operator\n", filepath.Join(baseDir, "server"))
-	fmt.Printf("  %s  — Client operator\n", filepath.Join(baseDir, "client"))
+	fmt.Printf("  %s  — Certificate Authority\n", filepath.Dir(cfg.CA.CertFile))
+	fmt.Printf("  %s  — Server operator\n", filepath.Dir(cfg.Server.CertFile))
+	fmt.Printf("  %s  — Client operator\n", filepath.Dir(cfg.Client.CertFile))
 	fmt.Println()
 
-	caCert, signLeaf, err := cert.CreateCA("go mTLS Demo CA")
+	caCert, signLeaf, err := cert.CreateCA(cfg.CA.CN, validity)
 	if err != nil {
 		return fmt.Errorf("error creating CA: %w", err)
 	}
 	cert.PrintCertificateInfo(caCert)
-	if err := cert.WriteCert(caCertPath, caCert); err != nil {
+	if err := cert.WriteCert(cfg.CA.CertFile, caCert); err != nil {
 		return fmt.Errorf("error writing CA certificate: %w", err)
 	}
 	// Distribute CA cert to server and client directories — simulates the CA operator
 	// handing the public cert to each team independently.
-	if err := cert.WriteCert(serverCACertPath, caCert); err != nil {
+	if err := cert.WriteCert(cfg.Server.CACertFile, caCert); err != nil {
 		return fmt.Errorf("error writing CA certificate to server directory: %w", err)
 	}
-	if err := cert.WriteCert(clientCACertPath, caCert); err != nil {
+	if err := cert.WriteCert(cfg.Client.CACertFile, caCert); err != nil {
 		return fmt.Errorf("error writing CA certificate to client directory: %w", err)
 	}
-	fmt.Printf("  [CA]     Certificate → %s\n", caCertPath)
-	fmt.Printf("  [CA]     Distributed to server → %s\n", serverCACertPath)
-	fmt.Printf("  [CA]     Distributed to client → %s\n", clientCACertPath)
+	fmt.Printf("  [CA]     Certificate → %s\n", cfg.CA.CertFile)
+	fmt.Printf("  [CA]     Distributed to server → %s\n", cfg.Server.CACertFile)
+	fmt.Printf("  [CA]     Distributed to client → %s\n", cfg.Client.CACertFile)
 	fmt.Println("  [CA]     Private key stays on the CA machine — NOT written to disk here.")
 	fmt.Println()
 
-	serverCert, serverPrivateKey, err := cert.CreateLeafCert(signLeaf, "go mTLS Demo Server")
+	serverCert, serverPrivateKey, err := cert.CreateLeafCert(signLeaf, cfg.Server.CN)
 	if err != nil {
 		return fmt.Errorf("error creating server certificate: %w", err)
 	}
@@ -70,17 +67,17 @@ func runDemo(baseDir string) error {
 	if err != nil {
 		return fmt.Errorf("error marshaling server key: %w", err)
 	}
-	if err := cert.WriteCert(serverCertPath, serverCert); err != nil {
+	if err := cert.WriteCert(cfg.Server.CertFile, serverCert); err != nil {
 		return fmt.Errorf("error writing server certificate: %w", err)
 	}
-	if err := cert.WriteKey(serverKeyPath, serverKeyBytes); err != nil {
+	if err := cert.WriteKey(cfg.Server.KeyFile, serverKeyBytes); err != nil {
 		return fmt.Errorf("error writing server key: %w", err)
 	}
-	fmt.Printf("  [SERVER] Certificate → %s\n", serverCertPath)
-	fmt.Printf("  [SERVER] Private key  → %s\n", serverKeyPath)
+	fmt.Printf("  [SERVER] Certificate → %s\n", cfg.Server.CertFile)
+	fmt.Printf("  [SERVER] Private key  → %s\n", cfg.Server.KeyFile)
 	fmt.Println()
 
-	clientCert, clientPrivateKey, err := cert.CreateLeafCert(signLeaf, "go mTLS Demo Client")
+	clientCert, clientPrivateKey, err := cert.CreateLeafCert(signLeaf, cfg.Client.CN)
 	if err != nil {
 		return fmt.Errorf("error creating client certificate: %w", err)
 	}
@@ -90,44 +87,49 @@ func runDemo(baseDir string) error {
 	if err != nil {
 		return fmt.Errorf("error marshaling client key: %w", err)
 	}
-	if err := cert.WriteCert(clientCertPath, clientCert); err != nil {
+	if err := cert.WriteCert(cfg.Client.CertFile, clientCert); err != nil {
 		return fmt.Errorf("error writing client certificate: %w", err)
 	}
-	if err := cert.WriteKey(clientKeyPath, clientKeyBytes); err != nil {
+	if err := cert.WriteKey(cfg.Client.KeyFile, clientKeyBytes); err != nil {
 		return fmt.Errorf("error writing client key: %w", err)
 	}
-	fmt.Printf("  [CLIENT] Certificate → %s\n", clientCertPath)
-	fmt.Printf("  [CLIENT] Private key  → %s\n", clientKeyPath)
+	fmt.Printf("  [CLIENT] Certificate → %s\n", cfg.Client.CertFile)
+	fmt.Printf("  [CLIENT] Private key  → %s\n", cfg.Client.KeyFile)
 	fmt.Println()
 
 	fmt.Println("=== Step 2/6: Start mTLS server (loading certificates from disk) ===")
-	fmt.Printf("Server reads from its own directory only: %s\n", filepath.Join(baseDir, "server"))
+	fmt.Printf("Server reads from its own directory only: %s\n", filepath.Dir(cfg.Server.CertFile))
 	fmt.Println("Server config: presents its certificate AND requires a valid client certificate.")
 	fmt.Println("Connections without a CA-signed client certificate will be rejected.")
 	fmt.Println()
 
-	server, err := CreateServer(serverCertPath, serverKeyPath, serverCACertPath)
+	server, err := CreateServer(cfg.Server.CertFile, cfg.Server.KeyFile, cfg.Server.CACertFile)
 	if err != nil {
 		return fmt.Errorf("error creating server: %w", err)
 	}
-	server.Config.ErrorLog = log.New(io.Discard, "", 0)
-	server.StartTLS()
+	server.ErrorLog = log.New(io.Discard, "", 0)
+	ln, err := tls.Listen("tcp", cfg.Server.Address, server.TLSConfig)
+	if err != nil {
+		return fmt.Errorf("error starting TLS listener on %s: %w", cfg.Server.Address, err)
+	}
+	go server.Serve(ln) //nolint:errcheck
 	defer server.Close()
-	fmt.Printf("[SERVER] Listening on %s\n", server.URL)
+	serverURL := "https://" + ln.Addr().String()
+	fmt.Printf("[SERVER] Listening on %s\n", serverURL)
 	fmt.Println()
 
 	fmt.Println("=== Step 3/6: Make request over mTLS (trusted client) ===")
-	fmt.Printf("Client reads from its own directory only: %s\n", filepath.Join(baseDir, "client"))
+	fmt.Printf("Client reads from its own directory only: %s\n", filepath.Dir(cfg.Client.CertFile))
 	fmt.Println("Authentication: client verifies server cert → CA   |   server verifies client cert → CA.")
 	fmt.Println()
 
-	client, err := CreateClient(clientCACertPath, clientCertPath, clientKeyPath)
+	client, err := CreateClient(cfg.Client.CACertFile, cfg.Client.CertFile, cfg.Client.KeyFile)
 	if err != nil {
 		return fmt.Errorf("error creating client: %w", err)
 	}
 
-	fmt.Printf("[CLIENT] GET %s\n", server.URL)
-	resp, err := client.Get(server.URL)
+	fmt.Printf("[CLIENT] GET %s\n", serverURL)
+	resp, err := client.Get(serverURL)
 	if err != nil {
 		return fmt.Errorf("error making GET request: %w", err)
 	}
@@ -142,14 +144,14 @@ func runDemo(baseDir string) error {
 
 	fmt.Println("=== Step 4/6: Generate untrusted client certificate (different CA) ===")
 	fmt.Println("This simulates a client from an external organisation — its CA is not trusted by the server.")
-	fmt.Printf("Untrusted client files written to: %s\n", filepath.Join(baseDir, "untrusted"))
+	fmt.Printf("Untrusted client files written to: %s\n", filepath.Dir(cfg.Untrusted.CertFile))
 	fmt.Println()
 
-	_, untrustedSignLeaf, err := cert.CreateCA("go mTLS Untrusted CA")
+	_, untrustedSignLeaf, err := cert.CreateCA(cfg.Untrusted.CACN, validity)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted CA: %w", err)
 	}
-	untrustedClientCert, untrustedClientKey, err := cert.CreateLeafCert(untrustedSignLeaf, "go mTLS Untrusted Client")
+	untrustedClientCert, untrustedClientKey, err := cert.CreateLeafCert(untrustedSignLeaf, cfg.Untrusted.CN)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client certificate: %w", err)
 	}
@@ -157,20 +159,20 @@ func runDemo(baseDir string) error {
 	if err != nil {
 		return fmt.Errorf("error marshaling untrusted client key: %w", err)
 	}
-	if err := cert.WriteCert(untrustedCertPath, untrustedClientCert); err != nil {
+	if err := cert.WriteCert(cfg.Untrusted.CertFile, untrustedClientCert); err != nil {
 		return fmt.Errorf("error writing untrusted client certificate: %w", err)
 	}
-	if err := cert.WriteKey(untrustedKeyPath, untrustedKeyBytes); err != nil {
+	if err := cert.WriteKey(cfg.Untrusted.KeyFile, untrustedKeyBytes); err != nil {
 		return fmt.Errorf("error writing untrusted client key: %w", err)
 	}
 	// The untrusted client still needs the server's CA cert to verify the server during
 	// the handshake — it's untrusted because its OWN cert is signed by a different CA.
-	if err := cert.WriteCert(untrustedCACertPath, caCert); err != nil {
+	if err := cert.WriteCert(cfg.Untrusted.CACertFile, caCert); err != nil {
 		return fmt.Errorf("error writing trusted CA cert to untrusted directory: %w", err)
 	}
-	fmt.Printf("  [UNTRUSTED CLIENT] Certificate → %s\n", untrustedCertPath)
-	fmt.Printf("  [UNTRUSTED CLIENT] Private key  → %s\n", untrustedKeyPath)
-	fmt.Printf("  [UNTRUSTED CLIENT] Server CA    → %s  (to verify server, but client cert is from a different CA)\n", untrustedCACertPath)
+	fmt.Printf("  [UNTRUSTED CLIENT] Certificate → %s\n", cfg.Untrusted.CertFile)
+	fmt.Printf("  [UNTRUSTED CLIENT] Private key  → %s\n", cfg.Untrusted.KeyFile)
+	fmt.Printf("  [UNTRUSTED CLIENT] Server CA    → %s  (to verify server, but client cert is from a different CA)\n", cfg.Untrusted.CACertFile)
 	fmt.Println()
 
 	fmt.Println("=== Step 5/6: Make request with untrusted client certificate ===")
@@ -179,13 +181,13 @@ func runDemo(baseDir string) error {
 
 	// The untrusted client trusts the server's CA so the dial proceeds far enough for
 	// the server to evaluate and reject the client certificate.
-	untrustedClient, err := CreateClient(untrustedCACertPath, untrustedCertPath, untrustedKeyPath)
+	untrustedClient, err := CreateClient(cfg.Untrusted.CACertFile, cfg.Untrusted.CertFile, cfg.Untrusted.KeyFile)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client: %w", err)
 	}
 
-	fmt.Printf("[UNTRUSTED CLIENT] GET %s\n", server.URL)
-	_, err = untrustedClient.Get(server.URL)
+	fmt.Printf("[UNTRUSTED CLIENT] GET %s\n", serverURL)
+	_, err = untrustedClient.Get(serverURL)
 	if err != nil {
 		fmt.Printf("[UNTRUSTED CLIENT] Connection rejected — %s\n", err)
 		fmt.Println("[UNTRUSTED CLIENT] Expected: server refused the certificate because it was not signed by the trusted cert.")
@@ -196,24 +198,25 @@ func runDemo(baseDir string) error {
 
 	fmt.Println("=== Step 6/6: Inspect files on disk ===")
 	fmt.Println("Each directory represents a security boundary — parties only share public certificates:")
-	printDirTree(baseDir)
+	printDirTree(cfg)
 	return nil
 }
 
-func printDirTree(baseDir string) {
-	entries := []struct{ owner, file string }{
-		{"ca",        "cert.crt           (public — the CA's own copy)"},
-		{"server",    "server.crt         (public — presented to clients during handshake)"},
-		{"server",    "server.key         (private — never leaves the server machine)"},
-		{"server",    "ca.crt             (public — copy received from CA, used to verify client certs)"},
-		{"client",    "client.crt         (public — presented to server during mTLS handshake)"},
-		{"client",    "client.key         (private — never leaves the client machine)"},
-		{"client",    "ca.crt             (public — copy received from CA, used to verify server cert)"},
-		{"untrusted", "client.crt         (public — rejected by server, unknown CA)"},
-		{"untrusted", "client.key         (private — never leaves the untrusted client)"},
-		{"untrusted", "ca.crt             (public — copy of server CA, to verify server cert)"},
+func printDirTree(cfg Config) {
+	entries := []struct{ file, note string }{
+		{cfg.CA.CertFile, "public — the CA's own copy"},
+		{cfg.Server.CertFile, "public — presented to clients during handshake"},
+		{cfg.Server.KeyFile, "private — never leaves the server machine"},
+		{cfg.Server.CACertFile, "public — copy received from CA, used to verify client certs"},
+		{cfg.Client.CertFile, "public — presented to server during mTLS handshake"},
+		{cfg.Client.KeyFile, "private — never leaves the client machine"},
+		{cfg.Client.CACertFile, "public — copy received from CA, used to verify server cert"},
+		{cfg.Untrusted.CertFile, "public — rejected by server, unknown CA"},
+		{cfg.Untrusted.KeyFile, "private — never leaves the untrusted client"},
+		{cfg.Untrusted.CACertFile, "public — copy of server CA, to verify server cert"},
 	}
 	for _, e := range entries {
-		fmt.Printf("  %s/%s/%s\n", baseDir, e.owner, e.file)
+		fmt.Printf("  %-55s  %s\n", e.file, e.note)
 	}
 }
+

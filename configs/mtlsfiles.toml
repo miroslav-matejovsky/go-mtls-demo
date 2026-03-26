@@ -1,0 +1,24 @@
+[ca]
+cn        = "go mTLS Demo CA"
+cert_file = "certs/mtlsfiles/ca/cert.crt"
+validity  = "24h"
+
+[server]
+address      = "127.0.0.1:8444"
+cn           = "go mTLS Demo Server"
+cert_file    = "certs/mtlsfiles/server/server.crt"
+key_file     = "certs/mtlsfiles/server/server.key"
+ca_cert_file = "certs/mtlsfiles/server/ca.crt"
+
+[client]
+cn           = "go mTLS Demo Client"
+cert_file    = "certs/mtlsfiles/client/client.crt"
+key_file     = "certs/mtlsfiles/client/client.key"
+ca_cert_file = "certs/mtlsfiles/client/ca.crt"
+
+[untrusted]
+ca_cn        = "go mTLS Untrusted CA"
+cn           = "go mTLS Untrusted Client"
+cert_file    = "certs/mtlsfiles/untrusted/client.crt"
+key_file     = "certs/mtlsfiles/untrusted/client.key"
+ca_cert_file = "certs/mtlsfiles/untrusted/ca.crt"

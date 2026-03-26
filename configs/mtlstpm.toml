@@ -1,0 +1,19 @@
+[ca]
+cn        = "go mTLS TPM Demo CA"
+cert_file = "certs/mtlstpm/ca/cert.crt"
+validity  = "24h"
+
+[server]
+address      = "127.0.0.1:8445"
+cn           = "go mTLS TPM Demo Server"
+cert_file    = "certs/mtlstpm/server/server.crt"
+key_file     = "certs/mtlstpm/server/server.key"
+ca_cert_file = "certs/mtlstpm/server/ca.crt"
+
+[client]
+cn        = "go mTLS TPM Demo Client"
+container = "go-mtls-demo-client"
+
+[untrusted]
+ca_cn = "go mTLS TPM Untrusted CA"
+cn    = "go mTLS TPM Untrusted Client"
