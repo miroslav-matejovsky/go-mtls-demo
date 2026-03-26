@@ -12,7 +12,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: go-mtls-demo <tlsmem|mtlsmem|tlsfiles|mtlsfiles>")
+		fmt.Fprintln(os.Stderr, "usage: go-mtls-demo <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlstpm>")
 		os.Exit(1)
 	}
 
@@ -26,8 +26,10 @@ func main() {
 		err = tlsfiles.RunDemo()
 	case "mtlsfiles":
 		err = mtlsfiles.RunDemo()
+	case "mtlstpm":
+		err = runMtlstpmDemo()
 	default:
-		fmt.Fprintf(os.Stderr, "unknown mode %q — use \"tlsmem\", \"mtlsmem\", \"tlsfiles\", or \"mtlsfiles\"\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "unknown mode %q — use \"tlsmem\", \"mtlsmem\", \"tlsfiles\", \"mtlsfiles\", or \"mtlstpm\"\n", os.Args[1])
 		os.Exit(1)
 	}
 

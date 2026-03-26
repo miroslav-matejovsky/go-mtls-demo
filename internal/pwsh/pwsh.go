@@ -1,0 +1,55 @@
+// Package pwsh provides helpers for running PowerShell commands from Go.
+// It is used by the mtlstpm scenario to query TPM status and inspect the
+// Windows Certificate Store — tasks that the certtostore library does not expose.
+package pwsh
+
+import (
+	"bytes"
+	"fmt"
+	"os/exec"
+	"strings"
+)
+
+// RunCommand executes a PowerShell one-liner and returns trimmed stdout.
+// stderr is included in the error message when the command fails.
+func RunCommand(script string) (string, error) {
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("powershell: %w\n%s", err, strings.TrimSpace(stderr.String()))
+	}
+	return strings.TrimSpace(out.String()), nil
+}
+
+// CheckTPM returns whether a TPM 2.0 chip is present and enabled, plus a
+// human-readable summary of TPM properties from Get-Tpm.
+func CheckTPM() (available bool, details string, err error) {
+	raw, err := RunCommand("$t = Get-Tpm; ($t.TpmPresent -and $t.TpmEnabled).ToString()")
+	if err != nil {
+		return false, "", fmt.Errorf("CheckTPM: %w", err)
+	}
+	details, err = RunCommand(
+		"Get-Tpm | Select-Object TpmPresent, TpmReady, TpmEnabled, ManufacturerId, ManufacturerVersion | Format-List | Out-String",
+	)
+	if err != nil {
+		return false, "", fmt.Errorf("CheckTPM details: %w", err)
+	}
+	return strings.EqualFold(strings.TrimSpace(raw), "true"), strings.TrimSpace(details), nil
+}
+
+// ShowCertsInStore returns a formatted list of certificates from CurrentUser\My
+// whose Subject contains cn. Returns an empty string if no matching certs exist.
+func ShowCertsInStore(cn string) (string, error) {
+	script := fmt.Sprintf(
+		`Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Subject -like "*%s*" } | `+
+			`Select-Object Subject, Issuer, Thumbprint, NotAfter | Format-List | Out-String`,
+		cn,
+	)
+	out, err := RunCommand(script)
+	if err != nil {
+		return "", fmt.Errorf("ShowCertsInStore: %w", err)
+	}
+	return out, nil
+}

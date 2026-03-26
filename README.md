@@ -12,18 +12,19 @@ mTLS (mutual)   Client ──── verify server cert ────► Server
 
 ## Scenarios
 
-| Package                                   | Mode        | Certs                         |
-| ----------------------------------------- | ----------- | ----------------------------- |
-| [tlsmem](internal/tlsmem/README.md)       | One-way TLS | In memory                     |
-| [mtlsmem](internal/mtlsmem/README.md)     | Mutual TLS  | In memory                     |
-| [tlsfiles](internal/tlsfiles/README.md)   | One-way TLS | Written to `certs/tlsfiles/`  |
-| [mtlsfiles](internal/mtlsfiles/README.md) | Mutual TLS  | Written to `certs/mtlsfiles/` |
+| Package                                   | Mode        | Certs                                                           |
+| ----------------------------------------- | ----------- | --------------------------------------------------------------- |
+| [tlsmem](internal/tlsmem/README.md)       | One-way TLS | In memory                                                       |
+| [mtlsmem](internal/mtlsmem/README.md)     | Mutual TLS  | In memory                                                       |
+| [tlsfiles](internal/tlsfiles/README.md)   | One-way TLS | Written to `certs/tlsfiles/`                                    |
+| [mtlsfiles](internal/mtlsfiles/README.md) | Mutual TLS  | Written to `certs/mtlsfiles/`                                   |
+| [mtlstpm](internal/mtlstpm/README.md)     | Mutual TLS  | Server: files · Client: Windows cert store + TPM (Windows only) |
 
 ## Running
 
 ```pwsh
-go run cmd/main.go <tlsmem|mtlsmem|tlsfiles|mtlsfiles>
-.\scripts\run.ps1  <tlsmem|mtlsmem|tlsfiles|mtlsfiles>
+go run cmd/main.go <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlstpm>
+.\scripts\run.ps1  <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlstpm>
 ```
 
 ## References
