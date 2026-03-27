@@ -116,7 +116,7 @@ Or run these PowerShell commands when you are done:
 $store = [System.Security.Cryptography.X509Certificates.X509Store]::new('My', 'CurrentUser')
 $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
 $store.Certificates |
-    Where-Object { $_.Subject -like "*go mTLS TPM Demo Client*" } |
+    Where-Object { $_.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false) -eq 'go mTLS TPM Demo Client' } |
     ForEach-Object { $store.Remove($_) }
 $store.Close()
 
@@ -124,7 +124,7 @@ $store.Close()
 $store = [System.Security.Cryptography.X509Certificates.X509Store]::new('CA', 'CurrentUser')
 $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
 $store.Certificates |
-    Where-Object { $_.Subject -like "*go mTLS TPM Demo CA*" } |
+    Where-Object { $_.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false) -eq 'go mTLS TPM Demo CA' } |
     ForEach-Object { $store.Remove($_) }
 $store.Close()
 

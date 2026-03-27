@@ -10,6 +10,10 @@ import (
 
 // step6DemonstrateUntrustedClient creates a different-CA client in memory and shows the server rejecting it.
 func step6DemonstrateUntrustedClient(state *demoState, opCfg OperatorConfig, untrustedCfg UntrustedClientConfig) error {
+	if err := state.unexpectedServerError(); err != nil {
+		return err
+	}
+
 	fmt.Println("=== Step 6/7: Demonstrate untrusted client ===")
 	fmt.Println("Creating a client cert signed by a different CA — not trusted by the server.")
 	fmt.Println("The private key is in-memory (no cert store). The server must reject the connection.")
@@ -42,6 +46,9 @@ func step6DemonstrateUntrustedClient(state *demoState, opCfg OperatorConfig, unt
 		fmt.Printf("[UNTRUSTED CLIENT] Connection rejected — %s\n", err)
 		fmt.Println("[UNTRUSTED CLIENT] Expected: server refused client cert — not signed by the trusted CA.")
 		fmt.Println()
+		if err := state.unexpectedServerError(); err != nil {
+			return err
+		}
 		return nil
 	}
 

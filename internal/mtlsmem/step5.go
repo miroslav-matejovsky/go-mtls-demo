@@ -11,7 +11,7 @@ import (
 func step5MakeTrustedRequest(state *demoState) error {
 	fmt.Println("=== Step 5/6: Make request over mTLS (trusted client) ===")
 	fmt.Println("Client config: trusts the CA AND sends its own certificate (mutual TLS).")
-	fmt.Println("Authentication: client verifies server cert → CA   |   server verifies client cert → cert.")
+	fmt.Println("Authentication: client verifies server cert → CA   |   server verifies client cert → CA.")
 	fmt.Println()
 
 	client, err := CreateClient(state.caCert, state.clientCertPEM, state.clientKeyPEM)

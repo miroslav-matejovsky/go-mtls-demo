@@ -43,7 +43,7 @@ func step6MakeUntrustedRequest(state *demoState) error {
 	_, err = untrustedClient.Get(state.serverURL)
 	if err != nil {
 		fmt.Printf("[UNTRUSTED CLIENT] Connection rejected — %s\n", err)
-		fmt.Println("[UNTRUSTED CLIENT] Expected: server refused the certificate because it was not signed by the trusted cert.")
+		fmt.Println("[UNTRUSTED CLIENT] Expected: server refused the certificate because it was not signed by the trusted CA.")
 		return nil
 	}
 

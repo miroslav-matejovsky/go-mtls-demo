@@ -27,7 +27,9 @@ func step5StartServerAndMakeTrustedRequest(state *demoState, serverCfg ServerCon
 	if err != nil {
 		return fmt.Errorf("error starting TLS listener on %s: %w", serverCfg.Address, err)
 	}
-	go server.Serve(ln) //nolint:errcheck
+	go func() {
+		state.recordServerError(server.Serve(ln))
+	}()
 
 	state.server = server
 	state.serverURL = "https://" + ln.Addr().String()
@@ -54,5 +56,8 @@ func step5StartServerAndMakeTrustedRequest(state *demoState, serverCfg ServerCon
 	fmt.Printf("[CLIENT] Signing performed by: %s (private key never left the provider)\n", state.provider)
 	fmt.Println("[CLIENT] Response:", resp.Status)
 	fmt.Println()
+	if err := state.unexpectedServerError(); err != nil {
+		return err
+	}
 	return nil
 }

@@ -25,7 +25,9 @@ func step2StartServer(state *demoState, serverCfg ServerConfig) error {
 	if err != nil {
 		return fmt.Errorf("error starting TLS listener on %s: %w", serverCfg.Address, err)
 	}
-	go server.Serve(ln) //nolint:errcheck
+	go func() {
+		state.recordServerError(server.Serve(ln))
+	}()
 
 	state.server = server
 	state.serverURL = "https://" + ln.Addr().String()

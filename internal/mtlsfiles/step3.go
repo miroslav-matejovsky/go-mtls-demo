@@ -10,6 +10,10 @@ import (
 
 // step3MakeTrustedRequest performs the successful mutual-TLS exchange using the trusted client files.
 func step3MakeTrustedRequest(state *demoState, clientCfg ClientConfig) error {
+	if err := state.unexpectedServerError(); err != nil {
+		return err
+	}
+
 	fmt.Println("=== Step 3/6: Make request over mTLS (trusted client) ===")
 	fmt.Printf("Client reads from its own directory only: %s\n", filepath.Dir(clientCfg.CertFile))
 	fmt.Println("Authentication: client verifies server cert → CA   |   server verifies client cert → CA.")
@@ -33,5 +37,8 @@ func step3MakeTrustedRequest(state *demoState, clientCfg ClientConfig) error {
 		cert.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
 	fmt.Println("[CLIENT] Response:", resp.Status)
 	fmt.Println()
+	if err := state.unexpectedServerError(); err != nil {
+		return err
+	}
 	return nil
 }

@@ -19,24 +19,28 @@ function Write-Step([string]$Message) {
 }
 
 function Remove-CertificatesFromStore([string]$StoreName, [string]$CommonName) {
-    Write-Step "Removing certificates from CurrentUser\$StoreName matching CN '$CommonName'"
+    Write-Step "Removing certificates from CurrentUser\$StoreName with exact CN '$CommonName'"
 
     $store = [System.Security.Cryptography.X509Certificates.X509Store]::new($StoreName, 'CurrentUser')
     $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
 
     try {
-        $matches = @($store.Certificates | Where-Object { $_.Subject -like "*$CommonName*" })
-        if ($matches.Count -eq 0) {
+        $certMatches = @(
+            $store.Certificates | Where-Object {
+                $_.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false) -eq $CommonName
+            }
+        )
+        if ($certMatches.Count -eq 0) {
             Write-Host "No matching certificates found." -ForegroundColor Yellow
             return
         }
 
-        foreach ($cert in $matches) {
+        foreach ($cert in $certMatches) {
             Write-Host ("Removing certificate: {0} | Thumbprint: {1}" -f $cert.Subject, $cert.Thumbprint)
             $store.Remove($cert)
         }
 
-        Write-Host ("Removed {0} certificate(s)." -f $matches.Count) -ForegroundColor Green
+        Write-Host ("Removed {0} certificate(s)." -f $certMatches.Count) -ForegroundColor Green
     } finally {
         $store.Close()
     }

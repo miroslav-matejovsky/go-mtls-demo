@@ -9,7 +9,7 @@ import (
 
 // step1GenerateCA prints the shared trust-root introduction and creates the CA used by both peers.
 func step1GenerateCA(state *demoState) error {
-	fmt.Println("=== Step 1/5: Generate Certificate Authority (CA) ===")
+	fmt.Println("=== Step 1/6: Generate Certificate Authority (CA) ===")
 	fmt.Println("The same CA signs both the server and client certificates.")
 	fmt.Println("Both parties trust this CA and will accept any certificate it has signed.")
 	fmt.Println()

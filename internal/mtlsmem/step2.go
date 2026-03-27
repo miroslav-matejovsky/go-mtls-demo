@@ -10,9 +10,9 @@ import (
 
 // step2GenerateServerCertificate creates the server certificate and PEM material needed by the mTLS server.
 func step2GenerateServerCertificate(state *demoState) error {
-	fmt.Println("=== Step 2/5: Generate Server Certificate (signed by CA) ===")
+	fmt.Println("=== Step 2/6: Generate Server Certificate (signed by CA) ===")
 	fmt.Println("The server presents this certificate to the client during the mTLS handshake.")
-	fmt.Println("The client verifies its signature chain leads back to the trusted cert.")
+	fmt.Println("The client verifies its signature chain leads back to the trusted CA.")
 	fmt.Println()
 
 	serverCert, serverPrivateKey, err := cert.CreateLeafCert(state.signLeaf, "go mTLS Demo Server")

@@ -1,6 +1,7 @@
 package tlsfiles
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -22,7 +23,7 @@ func RunDemo() error {
 }
 
 func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfig) error {
-	state := &demoState{}
+	state := newDemoState()
 
 	if err := step1GenerateCA(state, opCfg, clientCfg); err != nil {
 		return err
@@ -42,4 +43,31 @@ type demoState struct {
 	operator  *Operator
 	server    *http.Server
 	serverURL string
+	serverErr chan error
+}
+
+func newDemoState() *demoState {
+	return &demoState{
+		serverErr: make(chan error, 1),
+	}
+}
+
+func (state *demoState) recordServerError(err error) {
+	if err == nil || errors.Is(err, http.ErrServerClosed) {
+		return
+	}
+
+	select {
+	case state.serverErr <- err:
+	default:
+	}
+}
+
+func (state *demoState) unexpectedServerError() error {
+	select {
+	case err := <-state.serverErr:
+		return fmt.Errorf("server stopped unexpectedly: %w", err)
+	default:
+		return nil
+	}
 }

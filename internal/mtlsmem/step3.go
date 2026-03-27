@@ -10,9 +10,9 @@ import (
 
 // step3GenerateClientCertificate creates the trusted client certificate and PEM material for the mutual-TLS client.
 func step3GenerateClientCertificate(state *demoState) error {
-	fmt.Println("=== Step 3/5: Generate Client Certificate (signed by CA) ===")
+	fmt.Println("=== Step 3/6: Generate Client Certificate (signed by CA) ===")
 	fmt.Println("KEY DIFFERENCE from plain TLS: the client also has a certificate.")
-	fmt.Println("The server will require this certificate and verify it against the trusted cert.")
+	fmt.Println("The server will require this certificate and verify it against the trusted CA.")
 	fmt.Println()
 
 	clientCert, clientPrivateKey, err := cert.CreateLeafCert(state.signLeaf, "go mTLS Demo Client")
