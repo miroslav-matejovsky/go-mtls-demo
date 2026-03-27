@@ -37,7 +37,8 @@ CA (in-memory)
 2. `store.Generate(EC/256)` — creates an ECDSA P-256 key inside the TPM/NCrypt;
    returns a `crypto.Signer` whose `Sign()` method calls into the TPM
 3. Use the signer's public key to issue a leaf cert signed by the demo CA
-4. `store.StoreWithDisposition(cert, nil, REPLACE_EXISTING)` — links the cert to the key
+4. `store.StoreWithDisposition(cert, caCert, REPLACE_EXISTING)` — links the cert to the key
+   and imports the CA copy needed by the Windows certificate store chain
 
 ### Runtime flow (demo step 5)
 
@@ -64,11 +65,16 @@ certs/mtlstpm/
     server.key        ← server private key (file — server is not using TPM in this demo)
     ca.crt            ← CA cert copy (server uses this to verify client certs)
 
-Windows cert store (CurrentUser\My):
-  go mTLS TPM Demo Client   ← client cert, linked to TPM/NCrypt key
+Windows cert store:
+  CurrentUser\My
+    go mTLS TPM Demo Client   ← client cert, linked to TPM/NCrypt key
+  CurrentUser\CA
+    go mTLS TPM Demo CA       ← CA copy imported during client cert enrollment
 ```
 
-Inspect the cert in `certmgr.msc` → Personal → Certificates.
+Inspect the certs in `certmgr.msc`:
+- Personal → Certificates
+- Intermediate Certification Authorities → Certificates
 
 ## Manual cleanup
 
@@ -92,6 +98,14 @@ $store = [System.Security.Cryptography.X509Certificates.X509Store]::new('My', 'C
 $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
 $store.Certificates |
     Where-Object { $_.Subject -like "*go mTLS TPM Demo Client*" } |
+    ForEach-Object { $store.Remove($_) }
+$store.Close()
+
+# Remove the CA certificate from CurrentUser\CA
+$store = [System.Security.Cryptography.X509Certificates.X509Store]::new('CA', 'CurrentUser')
+$store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+$store.Certificates |
+    Where-Object { $_.Subject -like "*go mTLS TPM Demo CA*" } |
     ForEach-Object { $store.Remove($_) }
 $store.Close()
 

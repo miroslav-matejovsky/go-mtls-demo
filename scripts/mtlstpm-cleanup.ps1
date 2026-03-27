@@ -5,6 +5,7 @@
 
 param(
     [string]$CN = 'go mTLS TPM Demo Client',
+    [string]$CACN = 'go mTLS TPM Demo CA',
     [string]$Container = 'go-mtls-demo-client',
     [string]$Provider
 )
@@ -17,10 +18,10 @@ function Write-Step([string]$Message) {
     Write-Host "==> $Message" -ForegroundColor Cyan
 }
 
-function Remove-DemoCertificates([string]$CommonName) {
-    Write-Step "Removing certificates from CurrentUser\My matching CN '$CommonName'"
+function Remove-CertificatesFromStore([string]$StoreName, [string]$CommonName) {
+    Write-Step "Removing certificates from CurrentUser\$StoreName matching CN '$CommonName'"
 
-    $store = [System.Security.Cryptography.X509Certificates.X509Store]::new('My', 'CurrentUser')
+    $store = [System.Security.Cryptography.X509Certificates.X509Store]::new($StoreName, 'CurrentUser')
     $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
 
     try {
@@ -64,6 +65,7 @@ function Remove-KeyContainer([string]$ProviderName, [string]$KeyContainer) {
 
 Write-Host "mTLS TPM cleanup starting..." -ForegroundColor Green
 Write-Host ("Certificate CN : {0}" -f $CN)
+Write-Host ("CA CN          : {0}" -f $CACN)
 Write-Host ("Key container  : {0}" -f $Container)
 if ($Provider) {
     Write-Host ("Provider       : {0}" -f $Provider)
@@ -71,7 +73,8 @@ if ($Provider) {
     Write-Host "Provider       : auto-detect (will try both TPM and software providers)"
 }
 
-Remove-DemoCertificates -CommonName $CN
+Remove-CertificatesFromStore -StoreName 'My' -CommonName $CN
+Remove-CertificatesFromStore -StoreName 'CA' -CommonName $CACN
 
 $providersToTry = if ($Provider) {
     @($Provider)
