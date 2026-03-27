@@ -23,9 +23,11 @@ Step "go mod tidy" {
     git diff --exit-code go.mod go.sum
 }
 Step "go build" {
-    $bin = Join-Path $env:TEMP "go-mtls-demo-check.exe"
+    $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+    $binDir = Join-Path $repoRoot "bin"
+    $bin = Join-Path $binDir "go-mtls-demo.exe"
+    New-Item -ItemType Directory -Path $binDir -Force | Out-Null
     go build -o $bin ./cmd/
-    Remove-Item $bin -ErrorAction SilentlyContinue
 }
 Step "go test"  { go test ./... }
 
