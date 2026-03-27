@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/certtostore"
+	"golang.org/x/sys/windows"
 
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pwsh"
 )
@@ -17,7 +18,7 @@ func step4ImportClientCertificate(state *demoState, clientCfg ClientConfig) erro
 	fmt.Printf("Linking signed certificate to key container %q in CurrentUser\\My.\n", clientCfg.Container)
 	fmt.Println()
 
-	if err := state.store.StoreWithDisposition(state.clientCert, state.operator.CACert(), certStoreAddReplaceExisting); err != nil {
+	if err := state.store.StoreWithDisposition(state.clientCert, state.operator.CACert(), windows.CERT_STORE_ADD_REPLACE_EXISTING); err != nil {
 		return fmt.Errorf("error storing client certificate: %w", err)
 	}
 	fmt.Printf("  [CLIENT] Certificate stored in CurrentUser\\My\n")

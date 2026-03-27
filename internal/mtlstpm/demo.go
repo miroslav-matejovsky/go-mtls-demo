@@ -111,11 +111,6 @@ func (state *demoState) unexpectedServerError() error {
 	}
 }
 
-// certStoreAddReplaceExisting is the Windows CryptoAPI CERT_STORE_ADD_REPLACE_EXISTING
-// disposition constant. It replaces any existing cert with the same subject/issuer
-// rather than silently reusing the old one — ensures re-runs pick up the new cert.
-const certStoreAddReplaceExisting = 3
-
 func closeDemoResources(state *demoState) error {
 	if state.server != nil {
 		if err := state.server.Close(); err != nil {
