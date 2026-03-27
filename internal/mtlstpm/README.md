@@ -73,7 +73,18 @@ Inspect the cert in `certmgr.msc` → Personal → Certificates.
 ## Manual cleanup
 
 The demo intentionally does not remove the cert or key automatically.
-Run these PowerShell commands when you are done:
+You can use the helper script:
+
+```powershell
+pwsh scripts/mtlstpm-cleanup.ps1
+
+# or pin the provider printed by the demo
+pwsh scripts/mtlstpm-cleanup.ps1 -Provider "Microsoft Platform Crypto Provider"
+```
+
+The script writes each cleanup action to the console as it runs.
+
+Or run these PowerShell commands when you are done:
 
 ```powershell
 # Remove the client certificate from CurrentUser\My
