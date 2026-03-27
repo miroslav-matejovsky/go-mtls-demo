@@ -40,7 +40,7 @@ CA (in-memory)
 4. `store.StoreWithDisposition(cert, caCert, REPLACE_EXISTING)` — links the cert to the key
    and imports the CA copy needed by the Windows certificate store chain
 
-### Runtime flow (demo step 5)
+### Runtime flow (demo steps 5–6)
 
 1. `store.CertByCommonName(cn)` — finds the cert by Subject CN
 2. `store.CertKey(ctx)` — derives a `*certtostore.Key` (implements `crypto.Signer`) from the cert context
@@ -53,6 +53,18 @@ go run cmd/main.go mtlstpm
 # or
 .\scripts\run.ps1 mtlstpm
 ```
+
+## What happens
+
+| Step | What                                                                                       |
+| ---- | ------------------------------------------------------------------------------------------ |
+| 1/7  | Generate the in-memory CA and the file-backed server certificate                           |
+| 2/7  | Detect TPM availability or choose the configured Windows key storage provider              |
+| 3/7  | Generate the client key inside `CurrentUser\My` via TPM/NCrypt                            |
+| 4/7  | Import the signed client certificate and CA copy into the Windows certificate store        |
+| 5/7  | Start the mTLS server and make a trusted request using the provider-backed client key      |
+| 6/7  | Demonstrate rejection of an untrusted client certificate signed by a different CA          |
+| 7/7  | Prompt for cleanup and optionally run `scripts/mtlstpm-cleanup.ps1`                        |
 
 ## File layout after running
 
@@ -75,6 +87,13 @@ Windows cert store:
 Inspect the certs in `certmgr.msc`:
 - Personal → Certificates
 - Intermediate Certification Authorities → Certificates
+
+## Cleanup
+
+In step 7/7, the demo asks whether it should run `scripts/mtlstpm-cleanup.ps1`
+for you. If you answer `yes`, the script runs immediately and prints each cleanup step.
+
+If you answer `no`, the demo prints the same script command and manual commands below.
 
 ## Manual cleanup
 

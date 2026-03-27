@@ -13,7 +13,7 @@ import (
 
 // step4ImportClientCertificate stores the signed certificate, inspects the cert store entry, and re-derives the key for runtime use.
 func step4ImportClientCertificate(state *demoState, clientCfg ClientConfig) error {
-	fmt.Println("=== Step 4/6: Import client certificate into Windows Certificate Store ===")
+	fmt.Println("=== Step 4/7: Import client certificate into Windows Certificate Store ===")
 	fmt.Printf("Linking signed certificate to key container %q in CurrentUser\\My.\n", clientCfg.Container)
 	fmt.Println()
 

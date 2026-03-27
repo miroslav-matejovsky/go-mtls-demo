@@ -43,7 +43,11 @@ func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfi
 	if err := step3GenerateClientKey(state, opCfg, clientCfg); err != nil {
 		return err
 	}
-	defer state.store.Close()
+	defer func() {
+		if state.store != nil {
+			state.store.Close()
+		}
+	}()
 
 	if err := step4ImportClientCertificate(state, clientCfg); err != nil {
 		return err
@@ -51,14 +55,21 @@ func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfi
 	if err := step5StartServerAndMakeTrustedRequest(state, serverCfg); err != nil {
 		return err
 	}
-	defer state.server.Close()
+	defer func() {
+		if state.server != nil {
+			state.server.Close()
+		}
+	}()
 
 	if err := step6DemonstrateUntrustedClient(state, opCfg, untrustedCfg); err != nil {
 		return err
 	}
 
-	printCleanupInstructions(state.provider, clientCfg.Container, clientCfg.CN)
-	return nil
+	if err := closeDemoResources(state); err != nil {
+		return err
+	}
+
+	return step7Cleanup(state.provider, clientCfg.Container, clientCfg.CN, opCfg.CN)
 }
 
 type demoState struct {
@@ -77,33 +88,18 @@ type demoState struct {
 // rather than silently reusing the old one — ensures re-runs pick up the new cert.
 const certStoreAddReplaceExisting = 3
 
-func printCleanupInstructions(provider, container, cn string) {
-	fmt.Println("=== Manual Cleanup ===")
-	fmt.Println("The client certificate and key were NOT removed automatically.")
-	fmt.Println("You can inspect them in certmgr.msc:")
-	fmt.Println("  CurrentUser → Personal → Certificates")
-	fmt.Println("  CurrentUser → Intermediate Certification Authorities → Certificates")
-	fmt.Println()
-	fmt.Println("You can run the cleanup script:")
-	fmt.Println()
-	fmt.Printf("  pwsh scripts/mtlstpm-cleanup.ps1 -Provider '%s' -Container '%s' -CN '%s' -CACN 'go mTLS TPM Demo CA'\n", provider, container, cn)
-	fmt.Println()
-	fmt.Println("Or copy/paste the equivalent PowerShell commands:")
-	fmt.Println()
-	fmt.Println("  # 1. Remove the client certificate from CurrentUser\\My:")
-	fmt.Println("  $store = [System.Security.Cryptography.X509Certificates.X509Store]::new('My', 'CurrentUser')")
-	fmt.Println("  $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)")
-	fmt.Printf("  $store.Certificates | Where-Object { $_.Subject -like \"*%s*\" } | ForEach-Object { $store.Remove($_) }\n", cn)
-	fmt.Println("  $store.Close()")
-	fmt.Println()
-	fmt.Println("  # 2. Remove the CA certificate from CurrentUser\\CA:")
-	fmt.Println("  $store = [System.Security.Cryptography.X509Certificates.X509Store]::new('CA', 'CurrentUser')")
-	fmt.Println("  $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)")
-	fmt.Println("  $store.Certificates | Where-Object { $_.Subject -like \"*go mTLS TPM Demo CA*\" } | ForEach-Object { $store.Remove($_) }")
-	fmt.Println("  $store.Close()")
-	fmt.Println()
-	fmt.Println("  # 3. Delete the NCrypt key container from the provider:")
-	fmt.Printf("  $p = New-Object System.Security.Cryptography.CngProvider('%s')\n", provider)
-	fmt.Printf("  $k = [System.Security.Cryptography.CngKey]::Open('%s', $p)\n", container)
-	fmt.Println("  $k.Delete()")
+func closeDemoResources(state *demoState) error {
+	if state.server != nil {
+		if err := state.server.Close(); err != nil {
+			return fmt.Errorf("closing server: %w", err)
+		}
+		state.server = nil
+	}
+	if state.store != nil {
+		if err := state.store.Close(); err != nil {
+			return fmt.Errorf("closing Windows cert store: %w", err)
+		}
+		state.store = nil
+	}
+	return nil
 }

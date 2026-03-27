@@ -12,7 +12,7 @@ import (
 
 // step3GenerateClientKey opens the Windows certificate store, generates the provider-backed key, and gets a signed client certificate.
 func step3GenerateClientKey(state *demoState, opCfg OperatorConfig, clientCfg ClientConfig) error {
-	fmt.Println("=== Step 3/6: Generate client key in Windows Certificate Store ===")
+	fmt.Println("=== Step 3/7: Generate client key in Windows Certificate Store ===")
 	fmt.Printf("Opening CurrentUser\\My via provider=%q  container=%q\n", state.provider, clientCfg.Container)
 	fmt.Println("Generating an ECDSA P-256 key pair. The private key is created by the provider.")
 	fmt.Println("certtostore returns a crypto.Signer — operations use the provider, raw bytes stay inside.")

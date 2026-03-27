@@ -13,7 +13,7 @@ import (
 
 // step2CheckTPM detects whether a TPM-backed provider can be used or whether the demo should fall back to software storage.
 func step2CheckTPM(state *demoState, clientCfg ClientConfig) error {
-	fmt.Println("=== Step 2/6: Check TPM availability ===")
+	fmt.Println("=== Step 2/7: Check TPM availability ===")
 	fmt.Println("Querying the system's Trusted Platform Module (TPM) via Get-Tpm.")
 	fmt.Println("If available, the client private key will be generated inside the TPM and never exported.")
 	fmt.Println()

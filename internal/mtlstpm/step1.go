@@ -11,7 +11,7 @@ import (
 
 // step1GenerateCAAndServer creates the in-memory CA, signs the server certificate, and writes server files to disk.
 func step1GenerateCAAndServer(state *demoState, opCfg OperatorConfig, serverCfg ServerConfig) error {
-	fmt.Println("=== Step 1/6: Generate CA and Server certificate ===")
+	fmt.Println("=== Step 1/7: Generate CA and Server certificate ===")
 	fmt.Println("CA is in-memory only — its private key is never written to disk.")
 	fmt.Printf("Server cert and CA distribution copy written to: %s\n", serverCfg.CertFile)
 	fmt.Println()

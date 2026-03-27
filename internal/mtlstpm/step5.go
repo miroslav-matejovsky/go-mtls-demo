@@ -13,7 +13,7 @@ import (
 
 // step5StartServerAndMakeTrustedRequest starts the file-backed mTLS server and completes the trusted Windows-store client request.
 func step5StartServerAndMakeTrustedRequest(state *demoState, serverCfg ServerConfig) error {
-	fmt.Println("=== Step 5/6: Start mTLS server and make trusted request ===")
+	fmt.Println("=== Step 5/7: Start mTLS server and make trusted request ===")
 	fmt.Printf("Server loads certificates from disk: %s\n", serverCfg.CertFile)
 	fmt.Printf("Client uses key from Windows cert store (provider: %s) — no key file on disk.\n", state.provider)
 	fmt.Println()

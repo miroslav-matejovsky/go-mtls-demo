@@ -6,6 +6,7 @@ package pwsh
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -21,6 +22,20 @@ func RunCommand(script string) (string, error) {
 		return "", fmt.Errorf("powershell: %w\n%s", err, strings.TrimSpace(stderr.String()))
 	}
 	return strings.TrimSpace(out.String()), nil
+}
+
+// RunScriptFile executes a PowerShell script file with inherited stdio so the
+// caller can interact with it and see its console output directly.
+func RunScriptFile(path string, args ...string) error {
+	cmdArgs := append([]string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path}, args...)
+	cmd := exec.Command("powershell", cmdArgs...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("powershell: %w", err)
+	}
+	return nil
 }
 
 // CheckTPM returns whether a TPM 2.0 chip is present and enabled, plus a
