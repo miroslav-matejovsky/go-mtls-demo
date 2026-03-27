@@ -6,6 +6,7 @@ package pwsh
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -21,6 +22,20 @@ func RunCommand(script string) (string, error) {
 		return "", fmt.Errorf("powershell: %w\n%s", err, strings.TrimSpace(stderr.String()))
 	}
 	return strings.TrimSpace(out.String()), nil
+}
+
+// RunScriptFile executes a PowerShell script file with inherited stdio so the
+// caller can interact with it and see its console output directly.
+func RunScriptFile(path string, args ...string) error {
+	cmdArgs := append([]string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path}, args...)
+	cmd := exec.Command("powershell", cmdArgs...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("powershell: %w", err)
+	}
+	return nil
 }
 
 // CheckTPM returns whether a TPM 2.0 chip is present and enabled, plus a
@@ -39,13 +54,25 @@ func CheckTPM() (available bool, details string, err error) {
 	return strings.EqualFold(strings.TrimSpace(raw), "true"), strings.TrimSpace(details), nil
 }
 
+func singleQuotePowerShell(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
+}
+
 // ShowCertsInStore returns a formatted list of certificates from CurrentUser\My
-// whose Subject contains cn. Returns an empty string if no matching certs exist.
+// whose Subject contains cn. It queries the .NET X509Store directly so it works
+// even when the Cert: PSDrive is unavailable. Returns an empty string if no
+// matching certs exist.
 func ShowCertsInStore(cn string) (string, error) {
 	script := fmt.Sprintf(
-		`Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Subject -like "*%s*" } | `+
-			`Select-Object Subject, Issuer, Thumbprint, NotAfter | Format-List | Out-String`,
-		cn,
+		`$store = [System.Security.Cryptography.X509Certificates.X509Store]::new('My', 'CurrentUser'); `+
+			`$store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly); `+
+			`try { `+
+			`$store.Certificates | Where-Object { $_.Subject -like ('*' + %s + '*') } | `+
+			`Select-Object Subject, Issuer, Thumbprint, NotAfter | Format-List | Out-String `+
+			`} finally { `+
+			`$store.Close() `+
+			`}`,
+		singleQuotePowerShell(cn),
 	)
 	out, err := RunCommand(script)
 	if err != nil {
