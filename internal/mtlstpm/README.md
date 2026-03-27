@@ -88,9 +88,12 @@ Or run these PowerShell commands when you are done:
 
 ```powershell
 # Remove the client certificate from CurrentUser\My
-Get-ChildItem Cert:\CurrentUser\My |
+$store = [System.Security.Cryptography.X509Certificates.X509Store]::new('My', 'CurrentUser')
+$store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+$store.Certificates |
     Where-Object { $_.Subject -like "*go mTLS TPM Demo Client*" } |
-    Remove-Item
+    ForEach-Object { $store.Remove($_) }
+$store.Close()
 
 # Delete the NCrypt key container
 # Replace <provider> with the provider printed by the demo
@@ -108,7 +111,7 @@ The provider name is printed by the demo in Step 2 — it is either
 - **TPM-backed keys** — the private key is generated and stored inside the TPM chip;
   it cannot be exported, copied, or stolen via the file system
 - **Windows Certificate Store** — where enterprise client identity certs live;
-  managed via `certmgr.msc`, PowerShell `Cert:\` drive, or `certtostore`
+  managed via `certmgr.msc`, .NET `X509Store`, or `certtostore`
 - **`crypto.Signer` interface** — Go's abstraction over any signing key;
   the `tls` package calls `key.Sign()` without knowing whether it's in-memory or in a TPM
 - **Server-side verification** — server holds CA cert; rejects any client whose cert

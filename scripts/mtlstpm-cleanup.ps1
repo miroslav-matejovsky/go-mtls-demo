@@ -20,18 +20,25 @@ function Write-Step([string]$Message) {
 function Remove-DemoCertificates([string]$CommonName) {
     Write-Step "Removing certificates from CurrentUser\My matching CN '$CommonName'"
 
-    $matches = @(Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Subject -like "*$CommonName*" })
-    if ($matches.Count -eq 0) {
-        Write-Host "No matching certificates found." -ForegroundColor Yellow
-        return
-    }
+    $store = [System.Security.Cryptography.X509Certificates.X509Store]::new('My', 'CurrentUser')
+    $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
 
-    foreach ($cert in $matches) {
-        Write-Host ("Removing certificate: {0} | Thumbprint: {1}" -f $cert.Subject, $cert.Thumbprint)
-        Remove-Item -LiteralPath $cert.PSPath
-    }
+    try {
+        $matches = @($store.Certificates | Where-Object { $_.Subject -like "*$CommonName*" })
+        if ($matches.Count -eq 0) {
+            Write-Host "No matching certificates found." -ForegroundColor Yellow
+            return
+        }
 
-    Write-Host ("Removed {0} certificate(s)." -f $matches.Count) -ForegroundColor Green
+        foreach ($cert in $matches) {
+            Write-Host ("Removing certificate: {0} | Thumbprint: {1}" -f $cert.Subject, $cert.Thumbprint)
+            $store.Remove($cert)
+        }
+
+        Write-Host ("Removed {0} certificate(s)." -f $matches.Count) -ForegroundColor Green
+    } finally {
+        $store.Close()
+    }
 }
 
 function Remove-KeyContainer([string]$ProviderName, [string]$KeyContainer) {
