@@ -53,12 +53,12 @@ The [agents/](agents/) folder contains standalone AGENTS.md files designed to be
 | `tlsfiles` | realistic TLS loading from files |
 | `mtlsfiles` | best general-purpose mTLS template in the repo |
 | `mtlsenterprise` | enterprise mTLS with intermediate CA, role-specific EKU, DNS SANs, chain bundles |
-| `mtlsenterprisetpm` | enterprise mTLS with intermediate CA plus TPM-backed client key (Windows only) |
 | `mtlstpm` | advanced client key protection with Windows cert store plus TPM or NCrypt |
+| `mtlsenterprisetpm` | enterprise mTLS with intermediate CA plus TPM-backed client key (Windows only) |
 
 ## Important scope note
 
-These docs use the repository as it exists today, but they also include production-oriented guidance derived from `prompt.txt`, especially for:
+These docs use the repository as it exists today, but they also include production-oriented guidance, especially for:
 
 - using an intermediate CA instead of issuing leaves directly from a root-like CA
 - treating file-backed server keys as test or development defaults

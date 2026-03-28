@@ -4,7 +4,7 @@ Back to [docs index](index.md)
 
 The repo demonstrates the mechanics correctly, but production systems usually need stronger PKI and stronger storage choices than a teaching demo.
 
-This chapter documents the direction the repo should teach, including the requirements captured in `prompt.txt`.
+This chapter documents the direction the repo teaches for production readiness.
 
 ## Use an intermediate CA for leaf issuance
 
@@ -27,7 +27,9 @@ Why this matters:
 - compromise blast radius is smaller
 - policy and trust management become cleaner
 
-Important current-state note: the repo does **not** implement this yet. Today the scenarios use a single in-memory CA for simplicity. That is a useful teaching simplification, not the final PKI topology to copy unchanged into production.
+The `mtlsenterprise` and `mtlsenterprisetpm` scenarios implement this model. They use `cert.CreateRootCA` → `SignIntermediateFunc` → `ProfiledSignerFunc` to build the full hierarchy, with role-specific EKU (ServerAuth / ClientAuth) and DNS SANs on server certificates. Chain bundles (leaf + intermediate) are written to disk for TLS presentation.
+
+The earlier scenarios (`tlsmem`, `mtlsmem`, `tlsfiles`, `mtlsfiles`, `mtlstpm`) use a single CA for simplicity. That is a useful teaching simplification, not the PKI topology to copy unchanged into production — use `mtlsenterprise` or `mtlsenterprisetpm` as the production PKI reference.
 
 ## Treat file-based server keys as development and test defaults
 

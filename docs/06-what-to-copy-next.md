@@ -8,18 +8,19 @@ If you are implementing TLS or mTLS in Go today, use the repo like this:
 
 - copy the trust-wiring ideas from `mtlsmem` if you want the cleanest conceptual example
 - copy the loading patterns from `mtlsfiles` if your certificates come from files
+- copy the enterprise PKI patterns from `mtlsenterprise` if you need an intermediate CA, role-specific EKU, or chain bundles
+- copy the enterprise PKI + TPM patterns from `mtlsenterprisetpm` if you need hardware-backed client keys with a production CA hierarchy (Windows only)
 - copy the `crypto.Signer` pattern from `mtlstpm` if your client or server key should stay outside normal file-based key storage
 - copy the negative-path validation approach from every mTLS scenario
 
-In practice, `mtlsfiles` plus selected ideas from `mtlstpm` is likely the best starting point for most serious implementations.
+In practice, `mtlsenterprisetpm` is the most production-complete reference (enterprise PKI + hardware-backed keys, Windows only). On non-Windows platforms, `mtlsenterprise` is the best production PKI starting point. `mtlsfiles` remains the simplest operational baseline for services that use flat CA hierarchies.
 
 ## Additional scenarios worth implementing
 
-To make the repo a stronger implementation guide, these scenarios would add a lot of value:
+To make the repo a stronger implementation guide, these scenarios would add value:
 
 | Proposed scenario | Why it helps |
 | --- | --- |
-| `mtlsintermediatefiles` | teaches the correct root -> intermediate -> leaf PKI model without adding OS-specific complexity |
 | `mtlstpmserverstore` | shows a Windows-hosted server whose key is not file-backed |
 | `mtlsazurekv` | shows a server certificate and key sourced from Azure Key Vault |
 | `mtlsrotation` | demonstrates leaf renewal and issuer rollover as part of normal operations |
@@ -27,11 +28,10 @@ To make the repo a stronger implementation guide, these scenarios would add a lo
 
 Recommended order:
 
-1. `mtlsintermediatefiles`
-2. `mtlsrotation`
-3. `mtlstpmserverstore`
-4. `mtlsazurekv`
-5. `mtlsrevocation`
+1. `mtlsrotation`
+2. `mtlstpmserverstore`
+3. `mtlsazurekv`
+4. `mtlsrevocation`
 
 ## Deployment-specific guidance
 

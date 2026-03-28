@@ -11,6 +11,7 @@ go test ./internal/tlsmem/...
 go test ./internal/mtlsmem/...
 go test ./internal/tlsfiles/...
 go test ./internal/mtlsfiles/...
+go test ./internal/mtlsenterprise/...
 
 # Run a single test by name
 go test ./internal/mtlsfiles/... -run TestDemo
@@ -38,7 +39,7 @@ No linter is configured. No CI/CD pipeline exists.
 
 ## Architecture
 
-`internal/cert` is the shared certificate package. There are four demo packages, all self-contained with the same four-file layout:
+`internal/cert` is the shared certificate package. There are seven demo packages. The first four (`tlsmem`, `mtlsmem`, `tlsfiles`, `mtlsfiles`) share the same four-file layout (`server.go`, `client.go`, `demo.go`, `config.go`). The enterprise packages (`mtlsenterprise`, `mtlsenterprisetpm`) and `mtlstpm` extend this with additional files (`operator.go`, `step*.go`):
 
 ```
 internal/
@@ -66,7 +67,7 @@ Each demo package has the same four-file structure:
 
 ## Key Conventions
 
-**`internal/cert` is the shared package.** `cert.CreateCA(cn, validity)`, `cert.CreateLeafCert(signLeaf, cn)`, `cert.PrintCertificateInfo`, and `cert.TLSVersionName` are the shared exports. Both demo packages import it as `"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"` and call `cert.CreateCA(...)` etc. Certificates include SKID/AKID extensions and random serial numbers.
+**`internal/cert` is the shared package.** `cert.CreateCA(cn, validity)`, `cert.CreateLeafCert(signLeaf, cn)`, `cert.PrintCertificateInfo`, and `cert.TLSVersionName` are the shared exports. All demo packages import it as `"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"` and call `cert.CreateCA(...)` etc. Certificates include SKID/AKID extensions and random serial numbers.
 
 **`signerFunc` / `cert.SignerFunc` closure pattern.** `cert.CreateCA()` returns a `SignerFunc` — a closure that signs leaf certificates with the CA's private key without exposing the key itself. Always pass this function through; never expose the raw CA key outside `internal/cert`.
 
