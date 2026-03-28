@@ -10,7 +10,7 @@ Client ──── verify server cert ────► Server
 ## Run
 
 ```pwsh
-go run cmd/main.go tlsfiles
+go run ./cmd/ tlsfiles
 ```
 
 Certificate files are written to `certs/tlsfiles/` (git-ignored) and recreated on every run.

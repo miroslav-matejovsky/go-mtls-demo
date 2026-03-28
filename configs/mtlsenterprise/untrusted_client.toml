@@ -1,0 +1,7 @@
+[untrusted_client]
+root_ca_cn        = "go mTLS Enterprise Untrusted Root CA"
+intermediate_ca_cn = "go mTLS Enterprise Untrusted Intermediate CA"
+cn                = "go mTLS Enterprise Untrusted Client"
+chain_file        = "certs/mtlsenterprise/untrusted/chain.crt"
+key_file          = "certs/mtlsenterprise/untrusted/client.key"
+root_cert_file    = "certs/mtlsenterprise/untrusted/root-ca.crt"

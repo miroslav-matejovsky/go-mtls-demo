@@ -1,0 +1,5 @@
+[client]
+cn             = "go mTLS Enterprise Client"
+chain_file     = "certs/mtlsenterprise/client/chain.crt"
+key_file       = "certs/mtlsenterprise/client/client.key"
+root_cert_file = "certs/mtlsenterprise/client/root-ca.crt"

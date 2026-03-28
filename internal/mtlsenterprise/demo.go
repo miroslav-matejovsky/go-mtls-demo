@@ -1,4 +1,4 @@
-package tlsfiles
+package mtlsenterprise
 
 import (
 	"context"
@@ -21,19 +21,29 @@ func RunDemo() error {
 	if err != nil {
 		return fmt.Errorf("loading client config: %w", err)
 	}
-	return runDemo(opCfg, serverCfg, clientCfg)
+	untrustedCfg, err := LoadUntrustedClientConfig(defaultUntrustedClientConfigPath)
+	if err != nil {
+		return fmt.Errorf("loading untrusted client config: %w", err)
+	}
+	return runDemo(opCfg, serverCfg, clientCfg, untrustedCfg)
 }
 
-func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfig) error {
+func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfig, untrustedCfg UntrustedClientConfig) error {
 	state := newDemoState()
 
-	if err := step1GenerateCA(state, opCfg, clientCfg); err != nil {
+	if err := step1CreateRootCA(state, opCfg); err != nil {
 		return err
 	}
-	if err := step2GenerateServerCertificate(state, serverCfg); err != nil {
+	if err := step2CreateIntermediateCA(state); err != nil {
 		return err
 	}
-	if err := step3StartServer(state, serverCfg); err != nil {
+	if err := step3GenerateServerCert(state, serverCfg); err != nil {
+		return err
+	}
+	if err := step4GenerateClientCert(state, clientCfg); err != nil {
+		return err
+	}
+	if err := step5StartServer(state, serverCfg); err != nil {
 		return err
 	}
 	defer func() {
@@ -44,7 +54,15 @@ func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfi
 		}
 	}()
 
-	return step4MakeRequest(state, clientCfg)
+	if err := step6TrustedRequest(state, clientCfg); err != nil {
+		return err
+	}
+	if err := step7UntrustedRequest(state, untrustedCfg); err != nil {
+		return err
+	}
+
+	step8InspectChain(state, opCfg, serverCfg, clientCfg, untrustedCfg)
+	return nil
 }
 
 type demoState struct {

@@ -22,6 +22,7 @@ func CreateServer(certPem, privateKeyPem []byte, caCert *x509.Certificate) (*htt
 	clientCAs.AppendCertsFromPEM(caPEM)
 
 	serverTLSConf := &tls.Config{
+		MinVersion:   tls.VersionTLS12,
 		Certificates: []tls.Certificate{serverCert},
 		ClientCAs:    clientCAs,
 		ClientAuth:   tls.RequireAndVerifyClientCert,

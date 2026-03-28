@@ -10,7 +10,7 @@ Client ──── verify server cert ────► Server
 ## Run
 
 ```pwsh
-go run cmd/main.go tlsmem
+go run ./cmd/ tlsmem
 ```
 
 ## What happens

@@ -26,6 +26,7 @@ func CreateClient(caCertFile, clientCertFile, clientKeyFile string) (*http.Clien
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
+				MinVersion:   tls.VersionTLS12,
 				RootCAs:      certpool,
 				Certificates: []tls.Certificate{clientCert},
 			},

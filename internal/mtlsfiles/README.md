@@ -11,7 +11,7 @@ Client ◄─── verify client cert ───── Server
 ## Run
 
 ```pwsh
-go run cmd/main.go mtlsfiles
+go run ./cmd/ mtlsfiles
 ```
 
 Certificate files are written to `certs/mtlsfiles/` (git-ignored) and recreated on every run.

@@ -1,4 +1,4 @@
-package mtlsfiles
+package mtlsenterprise
 
 import (
 	"crypto/tls"
@@ -11,19 +11,19 @@ import (
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
 )
 
-func CreateServer(certFile, keyFile, caCertFile string) (*http.Server, error) {
-	serverCert, err := tls.LoadX509KeyPair(certFile, keyFile)
+func CreateServer(chainFile, keyFile, rootCertFile string) (*http.Server, error) {
+	serverCert, err := tls.LoadX509KeyPair(chainFile, keyFile)
 	if err != nil {
-		return nil, fmt.Errorf("error loading server certificate: %w", err)
+		return nil, fmt.Errorf("error loading server certificate chain: %w", err)
 	}
 
-	caPEM, err := os.ReadFile(caCertFile)
+	rootPEM, err := os.ReadFile(rootCertFile)
 	if err != nil {
-		return nil, fmt.Errorf("error reading CA certificate: %w", err)
+		return nil, fmt.Errorf("error reading root CA certificate: %w", err)
 	}
 	clientCAs := x509.NewCertPool()
-	if !clientCAs.AppendCertsFromPEM(caPEM) {
-		return nil, fmt.Errorf("failed to parse CA certificate from %s", caCertFile)
+	if !clientCAs.AppendCertsFromPEM(rootPEM) {
+		return nil, fmt.Errorf("failed to parse root CA certificate from %s", rootCertFile)
 	}
 
 	tlsCfg := &tls.Config{

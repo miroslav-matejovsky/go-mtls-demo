@@ -12,7 +12,7 @@ func CreateClient(ca *x509.Certificate) (*http.Client, error) {
 	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Raw})
 	certpool.AppendCertsFromPEM(caPEM)
 
-	clientTLSConf := &tls.Config{RootCAs: certpool}
+	clientTLSConf := &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: certpool}
 	client := &http.Client{
 		Transport: &http.Transport{TLSClientConfig: clientTLSConf},
 	}

@@ -1,6 +1,6 @@
-# Go TLS / mTLS Demo
+# Go TLS / mTLS Guide and Examples
 
-Hands-on walkthroughs of one-way TLS and mutual TLS (mTLS) in Go using ECDSA P-256 certificates.
+Hands-on guidance and runnable examples for implementing one-way TLS and mutual TLS (mTLS) in Go using ECDSA P-256 certificates.
 
 ## Concepts
 
@@ -18,13 +18,31 @@ mTLS (mutual)   Client ──── verify server cert ────► Server
 | [mtlsmem](internal/mtlsmem/README.md)     | Mutual TLS  | In memory                                                       |
 | [tlsfiles](internal/tlsfiles/README.md)   | One-way TLS | Written to `certs/tlsfiles/`                                    |
 | [mtlsfiles](internal/mtlsfiles/README.md) | Mutual TLS  | Written to `certs/mtlsfiles/`                                   |
+| [mtlsenterprise](internal/mtlsenterprise/README.md) | Mutual TLS  | Intermediate CA, role-specific EKU, DNS SANs, chain bundles     |
 | [mtlstpm](internal/mtlstpm/README.md)     | Mutual TLS  | Server: files · Client: Windows cert store + TPM (Windows only) |
+
+## Guidance
+
+Use [docs/index.md](docs/index.md) as the main guide for how to read this repository as an implementation reference, from basic TLS through production-oriented mTLS patterns.
+
+## Agent Guides for Production Implementations
+
+The [docs/agents/](docs/agents/) folder contains standalone AGENTS.md files that can be copied into any production Go repository to guide AI coding agents on implementing enterprise-grade mTLS:
+
+| Guide | Focus |
+| ----- | ----- |
+| [AGENTS.mtls.md](docs/agents/AGENTS.mtls.md) | Core mTLS concepts, PKI topology, security checklist |
+| [AGENTS.server.md](docs/agents/AGENTS.server.md) | Server-side mTLS implementation |
+| [AGENTS.client.md](docs/agents/AGENTS.client.md) | Client-side mTLS implementation |
+| [AGENTS.cli.md](docs/agents/AGENTS.cli.md) | CLI operator tool for PKI management |
+| [AGENTS.windows.md](docs/agents/AGENTS.windows.md) | Windows Server deployment |
+| [AGENTS.container.md](docs/agents/AGENTS.container.md) | Container deployment (Azure) |
 
 ## Running
 
 ```pwsh
-go run cmd/main.go <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlstpm>
-.\scripts\run.ps1  <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlstpm>
+go run ./cmd/ <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlsenterprise|mtlstpm>
+.\scripts\run.ps1  <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlsenterprise|mtlstpm>
 ```
 
 ## References

@@ -1,6 +1,7 @@
 package mtlsfiles
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -36,7 +37,13 @@ func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfi
 	if err := step2StartServer(state, serverCfg); err != nil {
 		return err
 	}
-	defer state.server.Close()
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := state.server.Shutdown(ctx); err != nil {
+			state.server.Close()
+		}
+	}()
 
 	if err := step3MakeTrustedRequest(state, clientCfg); err != nil {
 		return err

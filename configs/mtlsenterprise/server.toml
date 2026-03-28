@@ -1,0 +1,7 @@
+[server]
+address        = "127.0.0.1:8446"
+cn             = "go mTLS Enterprise Server"
+chain_file     = "certs/mtlsenterprise/server/chain.crt"
+key_file       = "certs/mtlsenterprise/server/server.key"
+root_cert_file = "certs/mtlsenterprise/server/root-ca.crt"
+dns_names      = ["localhost"]
