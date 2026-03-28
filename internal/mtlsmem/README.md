@@ -11,7 +11,7 @@ Client ◄─── verify client cert ───── Server
 ## Run
 
 ```pwsh
-go run cmd/main.go mtlsmem
+go run ./cmd/ mtlsmem
 ```
 
 ## What happens

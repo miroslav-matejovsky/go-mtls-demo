@@ -4,6 +4,9 @@
 inside the machine's Trusted Platform Module (TPM) via the Windows Certificate Store.
 If no TPM is present, it falls back to the Microsoft Software Key Storage Provider (NCrypt).
 
+For broader Go TLS and mTLS implementation guidance using the whole repo as examples,
+see [`../../docs/index.md`](../../docs/index.md).
+
 ## What makes this different from mtlsfiles?
 
 | | mtlsfiles | mtlstpm |
@@ -49,7 +52,7 @@ CA (in-memory)
 ## Running
 
 ```pwsh
-go run cmd/main.go mtlstpm
+go run ./cmd/ mtlstpm
 # or
 .\scripts\run.ps1 mtlstpm
 ```

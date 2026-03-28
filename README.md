@@ -1,6 +1,6 @@
-# Go TLS / mTLS Demo
+# Go TLS / mTLS Guide and Examples
 
-Hands-on walkthroughs of one-way TLS and mutual TLS (mTLS) in Go using ECDSA P-256 certificates.
+Hands-on guidance and runnable examples for implementing one-way TLS and mutual TLS (mTLS) in Go using ECDSA P-256 certificates.
 
 ## Concepts
 
@@ -20,10 +20,14 @@ mTLS (mutual)   Client ──── verify server cert ────► Server
 | [mtlsfiles](internal/mtlsfiles/README.md) | Mutual TLS  | Written to `certs/mtlsfiles/`                                   |
 | [mtlstpm](internal/mtlstpm/README.md)     | Mutual TLS  | Server: files · Client: Windows cert store + TPM (Windows only) |
 
+## Guidance
+
+Use [docs/index.md](docs/index.md) as the main guide for how to read this repository as an implementation reference, from basic TLS through production-oriented mTLS patterns.
+
 ## Running
 
 ```pwsh
-go run cmd/main.go <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlstpm>
+go run ./cmd/ <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlstpm>
 .\scripts\run.ps1  <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlstpm>
 ```
 
