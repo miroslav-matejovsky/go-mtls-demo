@@ -8,7 +8,5 @@ container = "go-mtls-enterprise-tpm-client"
 
 # ─── Windows Key Storage Provider ─────────────────────────────────────────────
 [client.store]
-# Certificate store location. Only "CurrentUser" is supported by this demo.
-location          = "CurrentUser"
 # Key Storage Provider (KSP). Empty = auto-detect based on TPM availability.
 provider_override = ""

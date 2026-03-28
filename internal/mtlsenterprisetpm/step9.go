@@ -22,8 +22,8 @@ func step9Summary(state *demoState, opCfg OperatorConfig, serverCfg ServerConfig
 	fmt.Println("Certificate chain (enterprise PKI + TPM-backed client key):")
 	fmt.Printf("  Root CA (SKID: %X)\n", rootCert.SubjectKeyId)
 	fmt.Printf("    └── Intermediate CA (SKID: %X, AKID: %X)\n", intCert.SubjectKeyId, intCert.AuthorityKeyId)
-	fmt.Printf("          ├── Server cert (AKID: %X) → file-based chain bundle\n", intCert.SubjectKeyId)
-	fmt.Printf("          └── Client cert (AKID: %X) → TPM-backed key in Windows cert store\n", intCert.SubjectKeyId)
+	fmt.Printf("          ├── Server cert (expected AKID: %X) → file-based chain bundle\n", intCert.SubjectKeyId)
+	fmt.Printf("          └── Client cert (expected AKID: %X) → TPM-backed key in Windows cert store\n", intCert.SubjectKeyId)
 	fmt.Println()
 
 	fmt.Println("File layout — each directory represents a security boundary:")

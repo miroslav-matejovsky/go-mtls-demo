@@ -5,7 +5,6 @@ package mtlsenterprisetpm
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"net"
 	"net/http"
@@ -23,7 +22,7 @@ func step8UntrustedClient(state *demoState, untrustedCfg UntrustedClientConfig) 
 
 	fmt.Println("=== Step 8/9: Demonstrate untrusted client (separate enterprise PKI) ===")
 	fmt.Println("This client's certificate chain originates from a completely different root CA.")
-	fmt.Println("The private key is in-memory (no cert store). The server must reject the connection.")
+	fmt.Println("The private key is generated in-memory (not from a cert store), then written to disk for this demo. The server must reject the connection.")
 	fmt.Println()
 
 	// Build an entirely separate PKI: root → intermediate → client leaf
@@ -100,51 +99,9 @@ func createUntrustedClient(cfg UntrustedClientConfig) (*http.Client, error) {
 		return nil, fmt.Errorf("failed to parse root CA certificate from %s", cfg.RootCertFile)
 	}
 
-	// Load the untrusted chain bundle (leaf + untrusted intermediate) + key
-	chainPEM, err := os.ReadFile(cfg.ChainFile)
+	tlsCert, err := tls.LoadX509KeyPair(cfg.ChainFile, cfg.KeyFile)
 	if err != nil {
-		return nil, fmt.Errorf("error reading untrusted chain file: %w", err)
-	}
-	keyPEM, err := os.ReadFile(cfg.KeyFile)
-	if err != nil {
-		return nil, fmt.Errorf("error reading untrusted key file: %w", err)
-	}
-
-	// Parse the chain PEM to get individual cert DER blocks
-	var certDERs [][]byte
-	rest := chainPEM
-	for {
-		var block *pem.Block
-		block, rest = pem.Decode(rest)
-		if block == nil {
-			break
-		}
-		if block.Type == "CERTIFICATE" {
-			certDERs = append(certDERs, block.Bytes)
-		}
-	}
-	if len(certDERs) == 0 {
-		return nil, fmt.Errorf("no certificates found in %s", cfg.ChainFile)
-	}
-
-	keyBlock, _ := pem.Decode(keyPEM)
-	if keyBlock == nil {
-		return nil, fmt.Errorf("failed to decode key PEM from %s", cfg.KeyFile)
-	}
-	privKey, err := x509.ParseECPrivateKey(keyBlock.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing untrusted client key: %w", err)
-	}
-
-	leaf, err := x509.ParseCertificate(certDERs[0])
-	if err != nil {
-		return nil, fmt.Errorf("error parsing untrusted leaf certificate: %w", err)
-	}
-
-	tlsCert := tls.Certificate{
-		Certificate: certDERs,
-		PrivateKey:  privKey,
-		Leaf:        leaf,
+		return nil, fmt.Errorf("error loading untrusted client chain/key: %w", err)
 	}
 
 	client := &http.Client{

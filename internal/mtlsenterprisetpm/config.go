@@ -71,7 +71,6 @@ type ClientConfig struct {
 
 // StoreConfig controls which Windows Key Storage Provider is used for the client key.
 type StoreConfig struct {
-	Location         string `toml:"location"`
 	ProviderOverride string `toml:"provider_override"`
 }
 
