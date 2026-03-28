@@ -77,6 +77,48 @@ cert-manager is a Kubernetes-native certificate lifecycle manager. It issues
 certificates from your internal CA (or ACME, HashiCorp Vault, etc.), stores them in
 Kubernetes Secrets, and renews them automatically before expiry.
 
+> **Enterprise PKI note:** When using the Secrets Store CSI driver with an enterprise
+> PKI that issues certificates from an intermediate CA, store the leaf certificate and
+> intermediate CA certificate as **separate** Key Vault secrets. This gives you
+> independent rotation control — you can re-issue leaf certs without touching the
+> intermediate, or rotate the intermediate without modifying leaf-cert entries.
+>
+> ```yaml
+> apiVersion: secrets-store.csi.x-k8s.io/v1
+> kind: SecretProviderClass
+> metadata:
+>   name: mtls-enterprise-certs
+> spec:
+>   provider: azure
+>   parameters:
+>     usePodIdentity: "false"
+>     useVMManagedIdentity: "true"
+>     userAssignedIdentityID: "<managed-identity-client-id>"
+>     keyvaultName: "myVault"
+>     objects: |
+>       array:
+>         - |
+>           objectName: server-leaf-cert
+>           objectType: secret
+>           objectAlias: leaf.crt
+>         - |
+>           objectName: intermediate-ca-cert
+>           objectType: secret
+>           objectAlias: intermediate.crt
+>         - |
+>           objectName: server-key
+>           objectType: secret
+>           objectAlias: server.key
+>         - |
+>           objectName: root-ca-cert
+>           objectType: secret
+>           objectAlias: root-ca.crt
+>     tenantId: "<tenant-id>"
+> ```
+>
+> The Go service assembles the chain at load time (see
+> [Enterprise PKI Chain Assembly](#enterprise-pki-chain-assembly) below).
+
 ---
 
 ## Azure Key Vault as Certificate Source
@@ -103,6 +145,33 @@ az keyvault certificate import --vault-name myVault \
 az keyvault secret set --vault-name myVault \
     --name root-ca-cert --file root-ca.crt
 ```
+
+**Enterprise PKI:** When your organization's PKI issues leaf certificates from an
+intermediate CA (rather than directly from the root), store the leaf and intermediate
+as separate secrets so they can be rotated independently:
+
+```bash
+# Leaf certificate (issued by intermediate CA)
+az keyvault secret set --vault-name myVault \
+    --name server-leaf-cert --file leaf.crt
+
+# Intermediate CA certificate (issued by root CA)
+az keyvault secret set --vault-name myVault \
+    --name intermediate-ca-cert --file intermediate.crt
+
+# Private key for the leaf certificate
+az keyvault secret set --vault-name myVault \
+    --name server-key --file server.key
+
+# Root CA (trust anchor — used in client CA pools)
+az keyvault secret set --vault-name myVault \
+    --name root-ca-cert --file root-ca.crt
+```
+
+During pod startup (via CSI driver mount or init container), download both the leaf
+and intermediate certificates. The Go service assembles the full chain bundle before
+loading into `tls.Config` — see
+[Enterprise PKI Chain Assembly](#enterprise-pki-chain-assembly).
 
 > **Tip:** Use `az keyvault certificate import` for certs with private keys. Use
 > `az keyvault secret set` for public-only CA bundles or trust anchors.
@@ -182,6 +251,36 @@ caPool.AppendCertsFromPEM(caCert)
 
 This is identical to the file-based mTLS pattern — no Key Vault SDK, no special
 libraries. The CSI driver handles all Key Vault interaction.
+
+### Enterprise PKI Chain Assembly
+
+When an enterprise PKI issues leaf certificates from an intermediate CA, the leaf and
+intermediate are typically stored (and rotated) as separate secrets. The Go service
+must assemble the full chain before creating a `tls.Certificate`.
+
+```go
+// Load separate certs injected via CSI driver or init container
+leafPEM, _ := os.ReadFile("/certs/leaf.crt")
+intermediatePEM, _ := os.ReadFile("/certs/intermediate.crt")
+keyPEM, _ := os.ReadFile("/certs/server.key")
+
+// Assemble chain: leaf first, then intermediate
+chainPEM := append(leafPEM, '\n')
+chainPEM = append(chainPEM, intermediatePEM...)
+
+// Parse as TLS certificate with full chain
+cert, err := tls.X509KeyPair(chainPEM, keyPEM)
+```
+
+The resulting `tls.Certificate` contains the leaf certificate followed by the
+intermediate. During the TLS handshake, the server sends the full chain so clients
+can verify the path back to the root CA — even if they do not have the intermediate
+in their trust store.
+
+> **Important:** Order matters. The leaf certificate **must** come first in the
+> concatenated PEM bundle, followed by the intermediate(s). Placing the intermediate
+> before the leaf will cause `tls.X509KeyPair` to return an error because the private
+> key will not match the first certificate in the bundle.
 
 ---
 
@@ -399,6 +498,29 @@ tlsCfg := &tls.Config{
 (e.g., `fsnotify`) to detect changes and reload only when files are updated. This
 avoids unnecessary disk reads on every handshake.
 
+### Intermediate CA Rotation with CSI Driver
+
+Enterprise PKI environments periodically rotate the intermediate CA — typically
+years before the root CA expires. This is the sequence:
+
+1. **PKI operator issues a new intermediate** from the existing root CA.
+2. **Re-issue all leaf certificates** signed by the new intermediate. The old
+   intermediate may continue to validate existing leaf certs until they expire,
+   but new certs should use the new intermediate immediately.
+3. **Update Key Vault** with the new intermediate CA certificate secret and
+   the newly-issued leaf certificate secrets.
+4. **CSI driver detects the change** during its polling interval and updates the
+   mounted files inside each pod (`/certs/leaf.crt`, `/certs/intermediate.crt`).
+5. **Go service's `GetCertificate` callback** picks up the new chain on the next
+   TLS handshake (or the file watcher triggers a reload).
+6. **Root CA trust pool does NOT change.** Clients and servers still trust the
+   same root CA — only the intermediate layer is replaced.
+
+> **Key insight:** Because the root CA remains the same, no client-side trust store
+> updates are required. Clients verify the chain `leaf → new intermediate → root`
+> using the same root CA pool they already have. This is the primary operational
+> advantage of a two-tier (root + intermediate) PKI hierarchy.
+
 ---
 
 ## Health Probes over mTLS
@@ -579,6 +701,7 @@ spec:
 | No network policies alongside mTLS | Any pod in the cluster can attempt connections | Apply `NetworkPolicy` to restrict ingress to trusted pods |
 | Loading certs once at startup | Rotated certs are not picked up until pod restart | Use `GetCertificate` / `GetConfigForClient` callbacks with file watching |
 | Storing certs in `emptyDir` on disk | Keys persisted to node storage can survive pod deletion | Use `emptyDir` with `medium: Memory` (tmpfs) |
+| Storing only leaf cert in Key Vault, omitting intermediate from enterprise PKI chain | Clients receive an incomplete chain and cannot verify the path to the root CA — TLS handshakes fail with `x509: certificate signed by unknown authority` | Store the leaf cert and intermediate CA cert as separate Key Vault secrets; assemble the full chain (leaf + intermediate) at load time before passing to `tls.X509KeyPair` |
 
 ---
 

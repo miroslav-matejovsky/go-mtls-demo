@@ -46,6 +46,8 @@ if err != nil {
 
 `LoadX509KeyPair` parses all certificates in the file and sets them as the chain. The server uses this chain to build a path back to its trusted root.
 
+**Enterprise PKI note:** In organizations with a multi-level CA hierarchy, the chain file should contain the leaf certificate first, then the intermediate CA certificate (the direct issuer of the leaf). Do **not** include the root CA in the chain file — the root belongs only in the server's `ClientCAs` trust pool. Including the root is unnecessary (the server already has it) and violates the separation between "what the client presents" and "what the server trusts."
+
 **Key file contents** — A PEM-encoded private key (ECDSA or RSA). ECDSA P-256 is preferred for new deployments — smaller keys, faster handshakes, equivalent security to RSA-3072.
 
 ## Building the server trust pool
@@ -217,6 +219,23 @@ tlsCert := tls.Certificate{
 | `Certificate` | Slice of DER-encoded certificates. Leaf first, then intermediates. Use `cert.Raw` to get DER from a parsed `*x509.Certificate`. |
 | `PrivateKey` | Any value implementing `crypto.Signer`. The TLS stack calls `signer.Public()` and `signer.Sign()`. |
 | `Leaf` | Pre-parsed leaf certificate. Setting this avoids Go re-parsing `Certificate[0]` on every handshake. |
+
+**Enterprise PKI with a TPM-backed key:**
+
+In enterprise environments the client certificate is typically signed by an intermediate CA, not by the root directly. Include the intermediate in the chain so the server can build the full path back to the root:
+
+```go
+// Enterprise PKI with TPM-backed client key
+tlsCert := tls.Certificate{
+    Certificate: [][]byte{leafCert.Raw, intermediateCert.Raw},
+    PrivateKey:  tpmSigner, // crypto.Signer from TPM/HSM
+    Leaf:        leafCert,
+}
+```
+
+- `intermediateCert` is the CA that directly issued `leafCert`. Include it in the chain so the server can verify the path: leaf → intermediate → root.
+- The root CA is **not** in the chain — it lives in the server's `ClientCAs` pool. The server already trusts it; sending it is redundant and a common misconfiguration.
+- `tpmSigner` implements `crypto.Signer`. The private key never leaves the TPM — Go calls `tpmSigner.Sign()` during the handshake, and the TPM performs the cryptographic operation internally.
 
 **Common `crypto.Signer` sources:**
 - Windows certificate store via `certtostore` or `ncrypt` libraries
@@ -483,6 +502,26 @@ If you put the intermediate in `RootCAs`, any intermediate rotation on the serve
 ### Ignoring `GetClientCertificate` for long-running services
 
 If your service runs for weeks or months and the client certificate has a shorter validity period (e.g., 30 days), using `Certificates` means the process must be restarted to pick up a renewed cert. Use `GetClientCertificate` instead — it reloads from disk on each new TLS handshake.
+
+### Missing the intermediate CA from the client's chain file in enterprise PKI
+
+```go
+// ❌ Only the leaf — server cannot build a path to the root
+tlsCert := tls.Certificate{
+    Certificate: [][]byte{leafCert.Raw},
+    PrivateKey:  tpmSigner,
+    Leaf:        leafCert,
+}
+
+// ✅ Leaf + intermediate — server can verify leaf → intermediate → root
+tlsCert := tls.Certificate{
+    Certificate: [][]byte{leafCert.Raw, intermediateCert.Raw},
+    PrivateKey:  tpmSigner,
+    Leaf:        leafCert,
+}
+```
+
+**Symptom:** The server rejects the client with a `tls: certificate required` or `x509: certificate signed by unknown authority` error, even though the client's leaf cert was legitimately issued by the enterprise PKI. The server has the root CA in its `ClientCAs` pool, but it cannot build the chain because the intermediate is missing. **Fix:** Include the intermediate CA certificate (the direct issuer of the leaf) in the `Certificate` slice, immediately after the leaf.
 
 ### Not setting `Leaf` on manually constructed `tls.Certificate`
 

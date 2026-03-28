@@ -224,6 +224,32 @@ Why this matters:
 - Leaf private keys ARE returned — the server or client that owns the cert needs the key for TLS.
 - This pattern makes key leaks structurally impossible at the API level.
 
+### ProfiledSignerFunc for External Keys
+
+When leaf private keys live inside hardware (TPM, HSM, smart card), the CA cannot generate the key pair — the hardware does. The CA only sees the public key. A `ProfiledSignerFunc` accepts an externally-provided `crypto.PublicKey` instead of generating its own key pair:
+
+```go
+// ProfiledSignerFunc signs a certificate for an externally-provided public key.
+// The CA's private key is captured in the closure — never exposed.
+type ProfiledSignerFunc func(publicKey crypto.PublicKey, cn string, profile LeafProfile) (*x509.Certificate, error)
+```
+
+Note the differences from the standard `SignerFunc`:
+- **Input:** receives a `crypto.PublicKey` from the caller (the hardware-generated public key).
+- **Output:** returns only the signed `*x509.Certificate` — no private key. The private key never left the hardware.
+
+Typical workflow with a TPM-backed client key:
+
+1. **TPM generates the key pair.** The private key is non-exportable — it exists only inside the TPM.
+2. **Export the public key.** The TPM provides the `crypto.PublicKey` (e.g., `*ecdsa.PublicKey`).
+3. **Submit to ProfiledSignerFunc.** Pass the public key, common name, and a client leaf profile. The closure signs a certificate using the intermediate CA's captured private key.
+4. **Receive the signed certificate.** The result is a standard `*x509.Certificate` with `ExtKeyUsageClientAuth`.
+5. **Store the certificate.** Import the signed cert into the OS certificate store (e.g., Windows cert store), associated with the TPM key handle. The store import function requires the direct issuer certificate (the intermediate CA cert, not the root) to build the chain.
+
+At TLS time, the client presents the certificate from the store, and the TPM performs signing operations via `crypto.Signer` — the private key is used but never exposed to user-space code.
+
+This pattern is essential for any environment where keys must not exist in software: TPM-backed workstation identity, HSM-backed service identity, or smart-card-based operator authentication.
+
 ## Helper functions
 
 ### randomSerial — 128-bit random serial number
@@ -344,6 +370,11 @@ Design principles:
 - **Private keys never leave their party's directory.** `server.key` exists only in `server/`. `client.key` exists only in `client/`.
 - **Root CA cert is duplicated.** Each party gets a copy of `root-ca.crt` in their own directory. This makes each directory self-contained — no cross-directory references at runtime.
 - **Intermediate cert is NOT in trust pools.** Trust pools contain only the root CA cert. The intermediate cert is delivered inside chain bundles. The TLS handshake builds the full path: leaf → intermediate (from chain bundle) → root (from trust pool).
+
+Enterprise PKI notes:
+- **Intermediate CA cert appears in two places:** its own file (`intermediate-ca/cert.crt`) AND inside every chain bundle (`server/chain.crt`, `client/chain.crt`). The standalone copy is used during cert issuance; the copies inside chain bundles are used during TLS handshakes.
+- **Root CA cert is NOT in chain bundles.** The root cert only appears in trust pool configuration files (`server/root-ca.crt`, `client/root-ca.crt`). TLS peers use the trust pool to verify the chain, not the chain bundle.
+- **Cert store imports require the direct issuer.** When storing a leaf cert in an OS certificate store (e.g., Windows cert store via `StoreWithDisposition` or equivalent), you must provide the immediate issuer certificate — the intermediate CA cert, not the root. The store uses this to build the local chain association. Passing the root instead of the intermediate will cause chain-building failures at TLS time.
 
 ## Key protection
 
@@ -580,6 +611,16 @@ Automate this on a schedule shorter than the leaf validity period. For 7-day lea
 7. The old intermediate expires naturally.
 
 Trust pools do NOT change during intermediate rotation because they contain only the root CA cert.
+
+Enterprise intermediate rotation workflow:
+
+1. **Generate new intermediate from root.** Load the root CA key from offline/HSM storage. Create a new intermediate CA key pair and certificate signed by the root. The new intermediate gets a fresh serial number and validity period.
+2. **Re-issue all leaf certs from the new intermediate.** Every server and client cert must be re-signed by the new intermediate's key. The leaf key pairs may be reused (the private keys do not change), but the certificates themselves are new — signed by the new intermediate.
+3. **Rebuild all chain bundles.** Every `chain.crt` file (server-chain, client-chain) must be regenerated: new leaf cert + new intermediate cert concatenated in PEM order. Old chain bundles are now invalid because they contain the old intermediate.
+4. **Trust pools do NOT change.** Trust pool files contain only the root CA cert, which has not changed. No trust pool updates are needed on any service or client.
+5. **Deploy new bundles to all services.** Push the rebuilt chain bundles and the new leaf certs to every server and client. Restart or signal services to reload TLS configuration. Verify each service completes a full TLS handshake with the new chain before decommissioning the old intermediate.
+
+The key insight: intermediate rotation is invisible to trust pools. Every party still trusts the same root. Only the chain bundles — the identity material — change.
 
 ### Root rotation (rare, high-risk — avoid if possible)
 

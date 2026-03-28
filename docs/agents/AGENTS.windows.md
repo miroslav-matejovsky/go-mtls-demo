@@ -177,6 +177,21 @@ tlsCert.Certificate = [][]byte{leafCert.Raw, intermediateCert.Raw}
 The order is leaf first, then intermediates. The root CA is **not** included — the peer
 obtains it from its own trust pool.
 
+For enterprise PKI with multiple CA tiers, include **all** intermediates between the leaf
+and root, in order from leaf to highest intermediate:
+
+```go
+// Enterprise PKI: leaf + all intermediates (root is NOT included)
+tlsCert.Certificate = [][]byte{
+    leafCert.Raw,           // leaf cert signed by intermediate
+    intermediateCert.Raw,   // intermediate CA (direct issuer)
+}
+```
+
+> **Note:** For enterprise PKI with multiple CA tiers, include all intermediates between
+> the leaf and root, in order from leaf to highest intermediate. The root CA is never
+> included — peers have it in their trust pool.
+
 ### Key generation via CNG
 
 When generating a new TPM-backed key for certificate enrollment:
@@ -191,6 +206,119 @@ store.StoreCertificate(signedCert, caCert)
 
 The private key exists only as a TPM key handle. The signed certificate is stored in the
 Windows cert store and associated with that key handle.
+
+### Generating TPM-backed Keys for Enterprise PKI
+
+In an enterprise PKI environment, the TPM generates the key pair, but an intermediate CA
+(not the root) signs the leaf certificate. The full workflow:
+
+1. **Generate key inside TPM** — use CNG / NCrypt via a wrapper library
+2. **Export the public key** — only the public half leaves the TPM
+3. **Submit to intermediate CA** — via CLI tool, AD CS web enrollment, or REST API
+4. **Receive signed cert + intermediate CA cert** — the CA returns both
+5. **Import into Windows cert store** — associate the signed cert with the TPM key handle
+
+```go
+// Full enterprise TPM enrollment workflow (conceptual — actual API depends on library)
+
+// 1. Open the store with the Platform Crypto Provider (TPM)
+store := openCertStore("Microsoft Platform Crypto Provider", containerName)
+
+// 2. Generate a new ECDSA P-256 key inside the TPM
+store.Generate(GenerateOpts{Algorithm: "EC", Size: 256})
+
+// 3. Export the public key and build a CSR
+pubKey := store.PublicKey()
+csr := buildCSR(pubKey, "myservice.internal") // sign CSR with TPM key
+
+// 4. Submit CSR to intermediate CA and receive the signed certificate
+// This step is environment-specific: AD CS certreq, ACME, EST, or a custom API
+signedCert, intermediateCert := submitToIntermediateCA(csr)
+
+// 5. Import the signed cert + intermediate into the store
+// StoreWithDisposition requires the intermediate cert (direct issuer)
+// as the second argument — the library uses it to build the chain and
+// associate the cert with the correct CA.
+store.StoreWithDisposition(signedCert, intermediateCert, 3) // 3 = CERT_STORE_ADD_REPLACE_EXISTING
+
+// 6. Build the tls.Certificate with the full chain
+signer := store.GetSigner(signedCert) // crypto.Signer backed by TPM
+tlsCert := tls.Certificate{
+    Certificate: [][]byte{
+        signedCert.Raw,       // leaf cert
+        intermediateCert.Raw, // intermediate CA (direct issuer)
+    },
+    PrivateKey: signer,
+    Leaf:       signedCert,
+}
+```
+
+**Key points:**
+- `StoreWithDisposition` requires the **intermediate cert** (direct issuer) as its second
+  argument — not the root CA. The library uses it to verify the chain and associate the
+  certificate correctly in the store.
+- The `tls.Certificate.Certificate` slice must include both the leaf and intermediate so
+  that peers can build the full chain during the TLS handshake.
+- The root CA is distributed separately (via Group Policy or manual import into
+  `Cert:\LocalMachine\Root`) and is never included in the TLS handshake.
+
+### NCrypt Container Cleanup
+
+TPM-backed keys and their associated certificates must be cleaned up when decommissioning
+a service. NCrypt containers persist until explicitly removed.
+
+**List NCrypt containers:**
+
+```powershell
+# List all CNG key containers on the machine
+certutil -key -csp "Microsoft Platform Crypto Provider"
+
+# List software KSP containers (if using software fallback)
+certutil -key -csp "Microsoft Software Key Storage Provider"
+```
+
+**Remove a specific NCrypt container:**
+
+```powershell
+# Delete a CNG key container by name
+certutil -delkey -csp "Microsoft Platform Crypto Provider" "<ContainerName>"
+```
+
+**Remove certificates from the cert store:**
+
+```powershell
+# Find the certificate by CN
+$cert = Get-ChildItem "Cert:\LocalMachine\My" |
+    Where-Object { $_.Subject -match "CN=myservice" }
+
+# Remove the certificate
+Remove-Item "Cert:\LocalMachine\My\$($cert.Thumbprint)"
+
+# Verify removal
+Get-ChildItem "Cert:\LocalMachine\My" |
+    Where-Object { $_.Subject -match "CN=myservice" }
+```
+
+**Programmatic cleanup in Go:**
+
+```go
+// Conceptual pattern — actual API depends on the library used.
+
+// Open the store
+store := openCertStore("Microsoft Platform Crypto Provider", containerName)
+
+// Delete the key container and associated certificate
+store.DeleteKeyContainer(containerName)
+
+// Alternatively, remove the certificate from the store (key container
+// may need separate cleanup depending on the library)
+store.RemoveCertByCommonName("myservice.internal")
+```
+
+> **Always clean up NCrypt containers and cert store entries when decommissioning
+> services.** Orphaned TPM key handles consume limited TPM storage, and stale certificates
+> in the store can cause confusion during troubleshooting or accidental selection during
+> TLS handshakes.
 
 ---
 
@@ -666,6 +794,24 @@ or missing required EKU.
 - Verify the client cert is signed by a CA in the server's `ClientCAs` pool
 - Check the full chain: leaf → intermediate → root
 
+#### "certificate signed by unknown authority" with enterprise PKI
+
+**Cause:** The intermediate CA certificate is missing from the TLS chain. The peer cannot
+build the path from leaf to root because the intermediate is not presented during the
+handshake and is not in the peer's local store.
+
+**Fix:**
+- Ensure `tls.Certificate.Certificate` includes **both** the leaf cert and the
+  intermediate cert (direct issuer):
+  ```go
+  tlsCert.Certificate = [][]byte{leafCert.Raw, intermediateCert.Raw}
+  ```
+- Verify the intermediate is correct: `certutil -verify -urlfetch leaf.crt`
+- If using `StoreWithDisposition`, confirm the intermediate cert was passed as the second
+  argument during import
+- Check that the root CA is in the peer's trust pool (`Cert:\LocalMachine\Root` or
+  `ClientCAs` / `RootCAs` in `tls.Config`)
+
 #### Service fails to start
 
 **Cause:** Multiple possible — cert not found, port in use, permission denied.
@@ -718,3 +864,6 @@ latest cert from the store on each handshake.
 - ✅ Monitor certificate expiry and alert before `NotAfter`
 - ✅ Restrict firewall rules to required ports and source addresses
 - ✅ Use ECDSA P-256 for new key pairs (prefer over RSA)
+- ✅ Use enterprise TPM-backed keys with intermediate CA chain bundles
+- ✅ Clean up NCrypt containers and cert store entries when decommissioning
+- ✅ Include intermediate cert (direct issuer) when importing to cert store
