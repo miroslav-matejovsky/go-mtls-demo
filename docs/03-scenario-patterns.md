@@ -217,7 +217,7 @@ If you are implementing mTLS in Go today:
 - copy the enterprise PKI + TPM patterns from `mtlsenterprisetpm` if you need hardware-backed client keys with a production CA hierarchy (Windows only)
 - copy the `crypto.Signer` pattern from `mtlstpm` only if you need stronger key isolation with a simpler CA model
 
-For most applications, `mtlsenterprise` is the best production PKI reference, while `mtlsfiles` remains the simplest operational baseline.
+For most applications, `mtlsenterprisetpm` is the most production-complete reference (enterprise PKI + hardware-backed keys, Windows only). On non-Windows platforms, `mtlsenterprise` is the best production PKI reference. `mtlsfiles` remains the simplest operational baseline.
 
 Previous: [Chapter 2 - Core TLS and mTLS model in Go](02-core-tls-and-mtls-model.md)
 

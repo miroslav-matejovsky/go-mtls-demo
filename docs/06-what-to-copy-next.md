@@ -13,7 +13,7 @@ If you are implementing TLS or mTLS in Go today, use the repo like this:
 - copy the `crypto.Signer` pattern from `mtlstpm` if your client or server key should stay outside normal file-based key storage
 - copy the negative-path validation approach from every mTLS scenario
 
-In practice, `mtlsenterprise` is the best starting point for production PKI topology, while `mtlsfiles` remains the simplest operational baseline for services that use flat CA hierarchies.
+In practice, `mtlsenterprisetpm` is the most production-complete reference (enterprise PKI + hardware-backed keys, Windows only). On non-Windows platforms, `mtlsenterprise` is the best production PKI starting point. `mtlsfiles` remains the simplest operational baseline for services that use flat CA hierarchies.
 
 ## Additional scenarios worth implementing
 
