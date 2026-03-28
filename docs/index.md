@@ -58,7 +58,7 @@ The [agents/](agents/) folder contains standalone AGENTS.md files designed to be
 
 ## Important scope note
 
-These docs use the repository as it exists today, but they also include production-oriented guidance derived from `prompt.txt`, especially for:
+These docs use the repository as it exists today, but they also include production-oriented guidance, especially for:
 
 - using an intermediate CA instead of issuing leaves directly from a root-like CA
 - treating file-backed server keys as test or development defaults

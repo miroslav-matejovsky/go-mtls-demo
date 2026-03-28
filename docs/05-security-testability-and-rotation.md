@@ -88,9 +88,9 @@ Use this checklist when preparing an mTLS implementation for production. Items m
 - ✅ Generate cryptographically random serial numbers (`randomSerial()` in `cert.go`)
 - ✅ Set Subject Key Identifier on all certificates (`computeSKID()` in `cert.go`)
 - ✅ Set Authority Key Identifier on leaf certificates pointing to the issuing CA
-- ⬚ Include DNS SANs for service FQDNs, not just IP addresses
-- ⬚ Use separate EKU per role: `ServerAuth` only on server certs, `ClientAuth` only on client certs
-- 📄 Use an intermediate CA for leaf issuance, not the root directly (Chapter 4)
+- ✅ Include DNS SANs for service FQDNs (`mtlsenterprise` and `mtlsenterprisetpm` scenarios)
+- ✅ Use separate EKU per role: `ServerAuth` only on server certs, `ClientAuth` only on client certs (`mtlsenterprise` and `mtlsenterprisetpm`)
+- ✅ Use an intermediate CA for leaf issuance, not the root directly (`mtlsenterprise` and `mtlsenterprisetpm` scenarios)
 
 ### Key protection
 
