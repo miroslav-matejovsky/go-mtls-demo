@@ -18,6 +18,7 @@ mTLS (mutual)   Client ──── verify server cert ────► Server
 | [mtlsmem](internal/mtlsmem/README.md)     | Mutual TLS  | In memory                                                       |
 | [tlsfiles](internal/tlsfiles/README.md)   | One-way TLS | Written to `certs/tlsfiles/`                                    |
 | [mtlsfiles](internal/mtlsfiles/README.md) | Mutual TLS  | Written to `certs/mtlsfiles/`                                   |
+| [mtlsenterprise](internal/mtlsenterprise/README.md) | Mutual TLS  | Intermediate CA, role-specific EKU, DNS SANs, chain bundles     |
 | [mtlstpm](internal/mtlstpm/README.md)     | Mutual TLS  | Server: files · Client: Windows cert store + TPM (Windows only) |
 
 ## Guidance
@@ -27,8 +28,8 @@ Use [docs/index.md](docs/index.md) as the main guide for how to read this reposi
 ## Running
 
 ```pwsh
-go run ./cmd/ <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlstpm>
-.\scripts\run.ps1  <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlstpm>
+go run ./cmd/ <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlsenterprise|mtlstpm>
+.\scripts\run.ps1  <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlsenterprise|mtlstpm>
 ```
 
 ## References

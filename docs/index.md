@@ -39,6 +39,7 @@ If you already understand the protocol and want implementation patterns, start w
 | `mtlsmem` | smallest possible mTLS example |
 | `tlsfiles` | realistic TLS loading from files |
 | `mtlsfiles` | best general-purpose mTLS template in the repo |
+| `mtlsenterprise` | enterprise mTLS with intermediate CA, role-specific EKU, DNS SANs, chain bundles |
 | `mtlstpm` | advanced client key protection with Windows cert store plus TPM or NCrypt |
 
 ## Important scope note

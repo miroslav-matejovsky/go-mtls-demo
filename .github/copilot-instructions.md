@@ -44,6 +44,7 @@ internal/
   mtlsmem/     – mutual TLS,    certs in memory
   tlsfiles/    – one-way TLS,   certs written to certs/tlsfiles/ and loaded from disk
   mtlsfiles/   – mutual TLS,    certs written to certs/mtlsfiles/ and loaded from disk
+  mtlsenterprise/ – mutual TLS, intermediate CA, role-specific EKU, DNS SANs, chain bundles
   mtlstpm/     – mutual TLS,    server: files in certs/mtlstpm/; client: Windows cert store + TPM (Windows only)
 ```
 
