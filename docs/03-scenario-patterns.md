@@ -114,35 +114,6 @@ client := &http.Client{
 
 For many real services, this is the best baseline to adapt first.
 
-## `mtlstpm`: advanced key-management pattern
-
-`mtlstpm` is the advanced example in the repo. Its main teaching value is that Go's TLS stack can work with a `crypto.Signer` instead of raw private-key bytes.
-
-That lets the private key live in the Windows certificate store and be backed by TPM or NCrypt.
-
-The TLS certificate is assembled like this:
-
-```go
-tlsCert := tls.Certificate{
-    Certificate: [][]byte{clientCert.Raw},
-    PrivateKey:  key,
-    Leaf:        clientCert,
-}
-```
-
-And the key is created and enrolled like this:
-
-```go
-signer, err := store.Generate(certtostore.GenerateOpts{
-    Algorithm: certtostore.EC,
-    Size:      256,
-})
-
-clientCert, err := state.operator.SignCertForKey(signer.Public(), clientCfg.CN)
-```
-
-This is the right example when you want to keep client private keys outside normal file-based storage.
-
 ## `mtlsenterprise`: production PKI topology
 
 `mtlsenterprise` teaches the correct root → intermediate → leaf PKI model used in production environments. It adds three capabilities not present in `mtlsfiles`:
@@ -184,6 +155,35 @@ clientCAs.AppendCertsFromPEM(rootPEM)
 ```
 
 Use this when you need a realistic PKI topology and want to understand how chain bundles, EKU separation, and DNS SANs work together.
+
+## `mtlstpm`: advanced key-management pattern
+
+`mtlstpm` is the advanced example in the repo. Its main teaching value is that Go's TLS stack can work with a `crypto.Signer` instead of raw private-key bytes.
+
+That lets the private key live in the Windows certificate store and be backed by TPM or NCrypt.
+
+The TLS certificate is assembled like this:
+
+```go
+tlsCert := tls.Certificate{
+    Certificate: [][]byte{clientCert.Raw},
+    PrivateKey:  key,
+    Leaf:        clientCert,
+}
+```
+
+And the key is created and enrolled like this:
+
+```go
+signer, err := store.Generate(certtostore.GenerateOpts{
+    Algorithm: certtostore.EC,
+    Size:      256,
+})
+
+clientCert, err := state.operator.SignCertForKey(signer.Public(), clientCfg.CN)
+```
+
+This is the right example when you want to keep client private keys outside normal file-based storage.
 
 ## `mtlsenterprisetpm`: enterprise PKI with TPM-backed client keys
 

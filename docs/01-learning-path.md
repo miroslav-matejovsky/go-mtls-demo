@@ -11,8 +11,8 @@ This repository is easiest to understand when you treat the scenarios as a progr
 3. `tlsfiles`
 4. `mtlsfiles`
 5. `mtlsenterprise`
-6. `mtlsenterprisetpm`
-7. `mtlstpm`
+6. `mtlstpm`
+7. `mtlsenterprisetpm`
 
 That order mirrors how you usually build mTLS in a real Go system:
 
@@ -20,8 +20,8 @@ That order mirrors how you usually build mTLS in a real Go system:
 2. add client authentication
 3. make certificate handling operationally realistic
 4. add production-grade PKI topology (intermediate CA, role-specific EKU, chain bundles)
-5. combine enterprise PKI with hardware-backed client keys
-6. harden private-key storage independently of the PKI model
+5. harden private-key storage with hardware-backed keys
+6. combine enterprise PKI with hardware-backed client keys
 
 ## Why each step exists
 
@@ -32,8 +32,8 @@ That order mirrors how you usually build mTLS in a real Go system:
 | `tlsfiles` | loading trust and identity from disk | matches how many real services are configured |
 | `mtlsfiles` | full mTLS with realistic loading and tests | best baseline template for many Go services |
 | `mtlsenterprise` | intermediate CA, role-specific EKU, DNS SANs, chain bundles | shows the correct root → intermediate → leaf PKI model used in production |
-| `mtlsenterprisetpm` | enterprise PKI + TPM-backed client key | combines the enterprise CA hierarchy with hardware-protected client identity (Windows only) |
 | `mtlstpm` | `crypto.Signer` with Windows cert store and TPM or NCrypt | shows how stronger key protection fits into the same Go TLS model |
+| `mtlsenterprisetpm` | enterprise PKI + TPM-backed client key | combines the enterprise CA hierarchy with hardware-protected client identity (Windows only) |
 
 ## Which scenario to copy from
 
@@ -50,8 +50,8 @@ That combination gives you the clearest path:
 - `mtlsmem` explains the handshake
 - `mtlsfiles` explains a maintainable real-world layout
 - `mtlsenterprise` explains production PKI topology
-- `mtlsenterprisetpm` explains enterprise PKI with hardware key isolation
 - `mtlstpm` explains advanced key storage with a simpler CA model
+- `mtlsenterprisetpm` combines enterprise PKI with hardware key isolation
 
 ## What the repository is trying to teach
 
