@@ -23,7 +23,16 @@ import (
 type SignerFunc func(pub crypto.PublicKey, cn string) (*x509.Certificate, error)
 
 func randomSerial() (*big.Int, error) {
-	return rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	limit := new(big.Int).Lsh(big.NewInt(1), 128)
+	for {
+		serial, err := rand.Int(rand.Reader, limit)
+		if err != nil {
+			return nil, err
+		}
+		if serial.Sign() > 0 {
+			return serial, nil
+		}
+	}
 }
 
 func computeSKID(pub crypto.PublicKey) ([]byte, error) {

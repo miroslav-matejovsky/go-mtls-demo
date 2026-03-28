@@ -1,6 +1,7 @@
 package mtlsenterprise
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
@@ -21,7 +22,7 @@ func step2CreateIntermediateCA(state *demoState) error {
 	fmt.Printf("  [OPERATOR] SKID/AKID linkage:\n")
 	fmt.Printf("    Root SKID         : %X\n", rootCert.SubjectKeyId)
 	fmt.Printf("    Intermediate AKID : %X\n", intCert.AuthorityKeyId)
-	fmt.Printf("    Match             : %t\n", fmt.Sprintf("%X", rootCert.SubjectKeyId) == fmt.Sprintf("%X", intCert.AuthorityKeyId))
+	fmt.Printf("    Match             : %t\n", bytes.Equal(rootCert.SubjectKeyId, intCert.AuthorityKeyId))
 	fmt.Println()
 	return nil
 }

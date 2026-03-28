@@ -62,7 +62,9 @@ func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfi
 		if state.server != nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			state.server.Shutdown(ctx)
+			if err := state.server.Shutdown(ctx); err != nil {
+				state.server.Close()
+			}
 		}
 	}()
 

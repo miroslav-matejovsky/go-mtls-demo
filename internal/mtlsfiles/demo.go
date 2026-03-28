@@ -40,7 +40,9 @@ func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfi
 	defer func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		state.server.Shutdown(ctx)
+		if err := state.server.Shutdown(ctx); err != nil {
+			state.server.Close()
+		}
 	}()
 
 	if err := step3MakeTrustedRequest(state, clientCfg); err != nil {
