@@ -31,6 +31,19 @@ If you already understand the protocol and want implementation patterns, start w
 7. [Deploying mTLS services on Windows](07-windows-deployment.md)
 8. [Deploying mTLS services as Azure containers](08-azure-container-deployment.md)
 
+## Agent guides for production implementations
+
+The [agents/](agents/) folder contains standalone AGENTS.md files designed to be copied into any production Go repository. They guide AI coding agents on implementing enterprise-grade mTLS — each file is self-contained and covers one concern:
+
+| Guide | Focus |
+| ----- | ----- |
+| [AGENTS.mtls.md](agents/AGENTS.mtls.md) | Core mTLS concepts, PKI topology, security checklist |
+| [AGENTS.server.md](agents/AGENTS.server.md) | Server-side mTLS implementation |
+| [AGENTS.client.md](agents/AGENTS.client.md) | Client-side mTLS implementation |
+| [AGENTS.cli.md](agents/AGENTS.cli.md) | CLI operator tool for PKI management |
+| [AGENTS.windows.md](agents/AGENTS.windows.md) | Windows Server deployment |
+| [AGENTS.container.md](agents/AGENTS.container.md) | Container deployment (Azure) |
+
 ## Quick map of the scenarios
 
 | Scenario | Role in the guide |

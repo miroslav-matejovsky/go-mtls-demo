@@ -25,6 +25,19 @@ mTLS (mutual)   Client ──── verify server cert ────► Server
 
 Use [docs/index.md](docs/index.md) as the main guide for how to read this repository as an implementation reference, from basic TLS through production-oriented mTLS patterns.
 
+## Agent Guides for Production Implementations
+
+The [docs/agents/](docs/agents/) folder contains standalone AGENTS.md files that can be copied into any production Go repository to guide AI coding agents on implementing enterprise-grade mTLS:
+
+| Guide | Focus |
+| ----- | ----- |
+| [AGENTS.mtls.md](docs/agents/AGENTS.mtls.md) | Core mTLS concepts, PKI topology, security checklist |
+| [AGENTS.server.md](docs/agents/AGENTS.server.md) | Server-side mTLS implementation |
+| [AGENTS.client.md](docs/agents/AGENTS.client.md) | Client-side mTLS implementation |
+| [AGENTS.cli.md](docs/agents/AGENTS.cli.md) | CLI operator tool for PKI management |
+| [AGENTS.windows.md](docs/agents/AGENTS.windows.md) | Windows Server deployment |
+| [AGENTS.container.md](docs/agents/AGENTS.container.md) | Container deployment (Azure) |
+
 ## Running
 
 ```pwsh
