@@ -60,7 +60,7 @@ Each demo package has the same four-file structure:
 
 ## Key Conventions
 
-**`internal/cert` is the shared package.** `cert.CreateCA(cn string)`, `cert.CreateLeafCert(signLeaf, cn)`, `cert.PrintCertificateInfo`, and `cert.TLSVersionName` are the shared exports. Both demo packages import it as `"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"` and call `cert.CreateCA(...)` etc.
+**`internal/cert` is the shared package.** `cert.CreateCA(cn, validity)`, `cert.CreateLeafCert(signLeaf, cn)`, `cert.PrintCertificateInfo`, and `cert.TLSVersionName` are the shared exports. Both demo packages import it as `"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"` and call `cert.CreateCA(...)` etc. Certificates include SKID/AKID extensions and random serial numbers.
 
 **`signerFunc` / `cert.SignerFunc` closure pattern.** `cert.CreateCA()` returns a `SignerFunc` — a closure that signs leaf certificates with the CA's private key without exposing the key itself. Always pass this function through; never expose the raw CA key outside `internal/cert`.
 
@@ -77,6 +77,14 @@ Each demo package has the same four-file structure:
 **mTLS server requires `ClientAuth: tls.RequireAndVerifyClientCert` + `ClientCAs`.** The `CreateServer` in `mtlsmem/` and `mtlsfiles/` takes a CA argument for this reason; the `tls*` versions do not.
 
 **Narrative output style.** `RunDemo()` prints step headers (`=== Step N/M: Description ===`), one-line explanations, then tagged log lines with `[SERVER]`, `[CLIENT]`, or `[UNTRUSTED CLIENT]` prefixes. Use `fmt.Print*` throughout — never `println` (it writes to stderr and interleaves badly).
+
+**All `tls.Config` structs set `MinVersion: tls.VersionTLS12`.** This makes the security floor explicit in every server and client across all packages.
+
+**File-based servers set timeouts.** `ReadTimeout: 10s`, `WriteTimeout: 10s`, `IdleTimeout: 120s` on all `http.Server` structs in `tlsfiles`, `mtlsfiles`, and `mtlstpm`.
+
+**File-based demos use graceful shutdown.** `server.Shutdown(ctx)` with a 5-second timeout context instead of `server.Close()`.
+
+**Private key files use restrictive permissions.** `WriteKey` uses `os.OpenFile(..., 0600)` so key files are owner-only readable.
 
 **Errors are wrapped with context.** Always use `fmt.Errorf("what failed: %w", err)`. `RunDemo()` returns errors; `main.go` panics on non-nil.
 

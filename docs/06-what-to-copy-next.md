@@ -33,6 +33,15 @@ Recommended order:
 4. `mtlsazurekv`
 5. `mtlsrevocation`
 
+## Deployment-specific guidance
+
+After choosing what to copy from the scenarios above, read the deployment chapter that matches your target environment:
+
+- **Deploying to Windows Server**: read [Chapter 7](07-windows-deployment.md) for server identity options (file vs cert store vs TPM), trust distribution via Group Policy, service account configuration, and troubleshooting.
+- **Deploying to Azure containers (ACI or AKS)**: read [Chapter 8](08-azure-container-deployment.md) for certificate injection patterns (CSI driver, Key Vault, Managed Identity), renewal strategies, network security, and health probe considerations.
+
+In both cases, `mtlsfiles` is the natural starting point — the Go code's certificate loading pattern stays the same regardless of how the cert files get to the process.
+
 ## Final takeaway
 
 The main value of this repository is not that it contains one working demo. The value is that it shows a progression of correct implementation ideas:
@@ -47,3 +56,5 @@ The main value of this repository is not that it contains one working demo. The 
 Read the repo that way, and it becomes both documentation and a set of examples for implementing TLS and mTLS properly in Go.
 
 Previous: [Chapter 5 - Security, testability, and rotation](05-security-testability-and-rotation.md)
+
+Next: [Chapter 7 - Deploying mTLS services on Windows](07-windows-deployment.md)

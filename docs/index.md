@@ -18,6 +18,7 @@ If you already understand the protocol and want implementation patterns, start w
 - Chapter 3 for the best scenario-by-scenario code references
 - Chapter 4 for production-oriented PKI and configuration guidance
 - Chapter 5 for security, testability, and certificate rotation guidance
+- Chapter 7 and 8 for Windows and Azure container deployment guidance
 
 ## Chapters
 
@@ -27,6 +28,8 @@ If you already understand the protocol and want implementation patterns, start w
 4. [Production guidance and configuration direction](04-production-guidance.md)
 5. [Security, testability, and rotation](05-security-testability-and-rotation.md)
 6. [What to build next](06-what-to-copy-next.md)
+7. [Deploying mTLS services on Windows](07-windows-deployment.md)
+8. [Deploying mTLS services as Azure containers](08-azure-container-deployment.md)
 
 ## Quick map of the scenarios
 
