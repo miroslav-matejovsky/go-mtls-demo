@@ -16,6 +16,7 @@ func CreateServer(certPem, privateKeyPem []byte) (*httptest.Server, error) {
 	}
 
 	serverTLSConf := &tls.Config{
+		MinVersion:   tls.VersionTLS12,
 		Certificates: []tls.Certificate{serverCert},
 	}
 

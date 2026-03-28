@@ -21,7 +21,7 @@ func CreateClient(caCertFile string) (*http.Client, error) {
 
 	client := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{RootCAs: certpool},
+			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: certpool},
 		},
 	}
 	return client, nil

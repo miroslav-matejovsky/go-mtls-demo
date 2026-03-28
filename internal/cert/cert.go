@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -21,6 +22,19 @@ import (
 // SignerFunc signs a public key with the given CN and returns a leaf certificate.
 type SignerFunc func(pub crypto.PublicKey, cn string) (*x509.Certificate, error)
 
+func randomSerial() (*big.Int, error) {
+	return rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+}
+
+func computeSKID(pub crypto.PublicKey) ([]byte, error) {
+	b, err := x509.MarshalPKIXPublicKey(pub)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal public key: %w", err)
+	}
+	hash := sha256.Sum256(b)
+	return hash[:], nil
+}
+
 // CreateCA creates a self-signed CA certificate with the given common name and validity duration.
 // The same validity is applied to any leaf certificates signed by the returned SignerFunc.
 // It returns the CA certificate and a SignerFunc closure for issuing leaf certificates.
@@ -29,13 +43,22 @@ func CreateCA(cn string, validity time.Duration) (*x509.Certificate, SignerFunc,
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate CA key: %w", err)
 	}
+	caSerial, err := randomSerial()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate CA serial: %w", err)
+	}
+	caSKID, err := computeSKID(&caKey.PublicKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to compute CA SKID: %w", err)
+	}
 	caTemplate := &x509.Certificate{
-		SerialNumber:          big.NewInt(1),
+		SerialNumber:          caSerial,
 		Subject:               pkix.Name{CommonName: cn},
 		NotBefore:             time.Now().Add(-time.Hour),
 		NotAfter:              time.Now().Add(validity),
 		IsCA:                  true,
 		BasicConstraintsValid: true,
+		SubjectKeyId:          caSKID,
 		// ExtKeyUsageClientAuth - allows the certificate to be used for client authentication in TLS
 		// ExtKeyUsageServerAuth - allows the certificate to be used for server authentication in TLS
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
@@ -52,14 +75,24 @@ func CreateCA(cn string, validity time.Duration) (*x509.Certificate, SignerFunc,
 		return nil, nil, fmt.Errorf("failed to parse CA certificate: %w", err)
 	}
 	signLeaf := func(pub crypto.PublicKey, cn string) (*x509.Certificate, error) {
+		leafSerial, err := randomSerial()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate leaf serial: %w", err)
+		}
+		leafSKID, err := computeSKID(pub)
+		if err != nil {
+			return nil, fmt.Errorf("failed to compute leaf SKID: %w", err)
+		}
 		certTemplate := &x509.Certificate{
-			SerialNumber: big.NewInt(2),
-			Subject:      pkix.Name{CommonName: cn},
-			NotBefore:    time.Now().Add(-time.Hour),
-			NotAfter:     time.Now().Add(validity),
-			ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-			KeyUsage:     x509.KeyUsageDigitalSignature,
-			IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+			SerialNumber:   leafSerial,
+			Subject:        pkix.Name{CommonName: cn},
+			NotBefore:      time.Now().Add(-time.Hour),
+			NotAfter:       time.Now().Add(validity),
+			ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+			KeyUsage:       x509.KeyUsageDigitalSignature,
+			IPAddresses:    []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+			SubjectKeyId:   leafSKID,
+			AuthorityKeyId: caCert.SubjectKeyId,
 		}
 		certDER, err := x509.CreateCertificate(rand.Reader, certTemplate, caCert, pub, caKey)
 		if err != nil {
@@ -99,6 +132,12 @@ func PrintCertificateInfo(c *x509.Certificate) {
 	fmt.Printf("  Is CA         : %t\n", c.IsCA)
 	fmt.Printf("  Key Usage     : %s\n", keyUsageNames(c.KeyUsage))
 	fmt.Printf("  Ext Key Usage : %v\n", c.ExtKeyUsage)
+	if len(c.SubjectKeyId) > 0 {
+		fmt.Printf("  Subject Key ID: %X\n", c.SubjectKeyId)
+	}
+	if len(c.AuthorityKeyId) > 0 {
+		fmt.Printf("  Auth Key ID   : %X\n", c.AuthorityKeyId)
+	}
 	fmt.Println()
 }
 
@@ -120,7 +159,7 @@ func WriteKey(path string, keyDER []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
-	f, err := os.Create(path)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}

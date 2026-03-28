@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
 )
@@ -26,13 +27,17 @@ func CreateServer(certFile, keyFile, caCertFile string) (*http.Server, error) {
 	}
 
 	tlsCfg := &tls.Config{
+		MinVersion:   tls.VersionTLS12,
 		Certificates: []tls.Certificate{serverCert},
 		ClientCAs:    clientCAs,
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 	}
 
 	srv := &http.Server{
-		TLSConfig: tlsCfg,
+		TLSConfig:    tlsCfg,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tlsState := r.TLS
 			fmt.Printf("[SERVER] Received request over mTLS — version: %s, cipher suite: %s\n",

@@ -3,11 +3,13 @@
 package mtlstpm
 
 import (
+	"context"
 	"crypto"
 	"crypto/x509"
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/google/certtostore"
 )
@@ -58,7 +60,9 @@ func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfi
 	}
 	defer func() {
 		if state.server != nil {
-			state.server.Close()
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			state.server.Shutdown(ctx)
 		}
 	}()
 
@@ -113,8 +117,10 @@ func (state *demoState) unexpectedServerError() error {
 
 func closeDemoResources(state *demoState) error {
 	if state.server != nil {
-		if err := state.server.Close(); err != nil {
-			return fmt.Errorf("closing server: %w", err)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := state.server.Shutdown(ctx); err != nil {
+			return fmt.Errorf("shutting down server: %w", err)
 		}
 		state.server = nil
 	}

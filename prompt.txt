@@ -1,9 +1,0 @@
-add detailed guidelines for mTLS with TPM.
-additional requirements:
-1. Root CA will not be used. Intermediate CA will be used instead.
-2. Server can use either windows certificate store or azure key vault to store its certificate. File-based certificate storage only for testing purposes.
-3. Client will use certtostore go library to manage its certificates.
-4. Describe enrollment process for both server and client certificates, including how to generate and sign certificates using the Intermediate CA.
-5. Describe configuration structure for both server and client to enable mTLS using TPM, including necessary settings for certificate validation and trust.
-6. After enrollment, the client should be fully autonomous in managing its certificates and performing mTLS authentication.
-Even changes in the Intermediate CA should not affect the client's ability to authenticate as long as the new Intermediate CA is trusted.
