@@ -1,9 +1,19 @@
 # AGENTS.mtls.md — Enterprise mTLS in Go
 
+> **Layer:** Root
+> **Children:**
+> - [AGENTS.certs.md](AGENTS.certs.md) — Certificate domain (creation, signing, store, lifecycle)
+> - [AGENTS.operator.md](AGENTS.operator.md) — PKI operator workflows
+> - [AGENTS.server.md](AGENTS.server.md) — Server TLS configuration
+> - [AGENTS.client.md](AGENTS.client.md) — Client TLS configuration
+> - [AGENTS.container.md](AGENTS.container.md) — Azure/Kubernetes deployment
+> - [AGENTS.windows.md](AGENTS.windows.md) — Windows platform operations
+
 > **Audience:** AI coding agents working in a production Go codebase.
-> This document is self-contained. It covers mutual TLS concepts, PKI topology,
-> certificate lifecycle, Go configuration patterns, testing strategy, and
-> common mistakes. Drop it into any Go repository that needs mTLS guidance.
+> This is the root context for the mTLS guide hierarchy. It covers mutual TLS
+> concepts, PKI topology, trust model, Go configuration patterns, testing
+> strategy, and common mistakes. Certificate domain logic (types, chain bundles,
+> generation, store operations, lifecycle) is in [AGENTS.certs.md](AGENTS.certs.md).
 
 ---
 
@@ -94,239 +104,18 @@ Root CA (offline, long-lived, 1–10 years)
 
 ---
 
-## 3. Certificate Types and Fields
+## 3. Certificate Domain
 
-### Extended Key Usage (EKU)
-
-| Role | EKU | Purpose |
-|------|-----|---------|
-| Server | `x509.ExtKeyUsageServerAuth` | Server proves identity to clients |
-| Client | `x509.ExtKeyUsageClientAuth` | Client proves identity to servers |
-| Intermediate CA | (none — uses `KeyUsageCertSign`) | Signs leaf certs only |
-
-Why separate? A compromised server cert with `ClientAuth` EKU could
-impersonate a client to other services. Role-specific EKUs contain blast
-radius.
-
-### Subject Alternative Names (SANs)
-
-SANs are the **only** field modern TLS libraries use for identity verification.
-The legacy `CommonName` field is ignored by Go's `x509` verifier.
-
-- **DNS SANs** on server certs: `DNSNames: []string{"api.example.com"}`
-- **IP SANs** for internal/test servers: `IPAddresses: []net.IP{net.ParseIP("127.0.0.1")}`
-- Client certs may use DNS SANs, URI SANs, or email SANs depending on the
-  identity model.
-
-```go
-serverTemplate := &x509.Certificate{
-    DNSNames:    []string{"api.prod.internal", "api.prod.internal.svc"},
-    IPAddresses: []net.IP{net.ParseIP("10.0.1.42")},
-    ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-}
-```
-
-### Subject Key ID (SKID) and Authority Key ID (AKID)
-
-- **SKID** is a hash of the certificate's own public key. It uniquely
-  identifies the key pair.
-- **AKID** references the SKID of the issuer. It tells the verifier which CA
-  key signed this certificate.
-- Together they form an unambiguous chain: leaf.AKID → intermediate.SKID,
-  intermediate.AKID → root.SKID.
-
-Compute SKID from the public key:
-
-```go
-pubBytes, _ := x509.MarshalPKIXPublicKey(publicKey)
-hash := sha256.Sum256(pubBytes)
-template.SubjectKeyId = hash[:]
-```
-
-### Serial numbers
-
-Serial numbers MUST be unique within a CA. Use cryptographically random
-128-bit values:
-
-```go
-serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
-if err != nil {
-    return fmt.Errorf("generating serial number: %w", err)
-}
-template.SerialNumber = serialNumber
-```
-
-Never hardcode or increment serial numbers — collisions undermine revocation
-and can cause TLS stack confusion.
-
-### Validity periods
-
-| Certificate | Typical validity | Rationale |
-|------------|------------------|-----------|
-| Root CA | 1–10 years | Long-lived, offline, hard to rotate |
-| Intermediate CA | 30–90 days | Operational, rotated regularly |
-| Server leaf | 1–30 days | Short-lived, automated renewal |
-| Client leaf | 1–30 days | Short-lived, automated renewal |
-
-Shorter leaf lifetimes reduce the window of exposure if a key is compromised.
-Automate renewal — never rely on humans remembering to rotate.
+> Certificate types and fields (EKU, SANs, SKID, AKID, serial numbers, validity),
+> chain bundles (PEM format, presentation order, verification), hardware-backed
+> keys (`crypto.Signer`, issuance workflow), certificate generation with Go stdlib,
+> `SignerFunc`/`ProfiledSignerFunc` patterns, helper functions, certificate store
+> operations (`certtostore`), and certificate lifecycle (issuance, rotation,
+> revocation) are covered in **[AGENTS.certs.md](AGENTS.certs.md)**.
 
 ---
 
-## 4. Chain Bundles
-
-### PEM file format
-
-A chain bundle is a PEM file containing the leaf certificate followed by the
-intermediate certificate. The root is NOT included — the verifier already has
-it in its trust pool.
-
-```
------BEGIN CERTIFICATE-----
-<leaf certificate bytes — base64 encoded DER>
------END CERTIFICATE-----
------BEGIN CERTIFICATE-----
-<intermediate CA certificate bytes — base64 encoded DER>
------END CERTIFICATE-----
-```
-
-### Presentation order
-
-During the TLS handshake the server (or client, in mTLS) sends its certificate
-chain. The standard order is:
-
-1. **Leaf certificate** (the entity's own cert)
-2. **Intermediate CA certificate** (the issuer of the leaf)
-
-The root CA certificate is omitted — the peer already trusts it.
-
-### Verification chain
-
-The verifier reconstructs the chain in reverse:
-
-```
-leaf cert → signed by intermediate? ✅
-    intermediate cert → signed by root? ✅ (root is in trust pool)
-        chain valid ✅
-```
-
-### Loading chain bundles in Go
-
-```go
-// Server loads its chain bundle (leaf + intermediate)
-serverCert, err := tls.LoadX509KeyPair("server-chain.pem", "server-key.pem")
-
-// The tls package automatically presents the full chain during handshake
-tlsConfig := &tls.Config{
-    Certificates: []tls.Certificate{serverCert},
-}
-```
-
-When constructing bundles programmatically, concatenate PEM blocks in order:
-
-```go
-var chainPEM []byte
-chainPEM = append(chainPEM, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: leafDER})...)
-chainPEM = append(chainPEM, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: intermediateDER})...)
-```
-
----
-
-## 5. Hardware-Backed Keys
-
-### `crypto.Signer` — the abstraction for hardware keys
-
-Go's `crypto.Signer` interface is the standard abstraction for private keys
-that may live in hardware:
-
-```go
-type Signer interface {
-    Public() crypto.PublicKey
-    Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error)
-}
-```
-
-Software keys (`*ecdsa.PrivateKey`, `*rsa.PrivateKey`) implement `crypto.Signer`
-natively. TPM and HSM libraries provide their own implementations where the
-`Sign` method issues a command to the hardware — the private key material never
-leaves the secure boundary.
-
-### Why hardware-backed keys matter
-
-A TPM (Trusted Platform Module) or HSM (Hardware Security Module) generates the
-key pair internally. Only the public key is exportable. The private key is used
-exclusively via the `Sign` method, which delegates to the hardware. Even a
-root-level compromise of the host cannot extract the raw key bytes.
-
-### Issuance workflow with hardware keys
-
-The standard CSR workflow adapts naturally to hardware-backed keys:
-
-1. **Generate key in hardware.** The TPM/HSM creates an ECDSA P-256 key pair.
-   The private key is non-exportable.
-2. **Export the public key.** The `crypto.Signer.Public()` method returns the
-   `crypto.PublicKey` without exposing private material.
-3. **Submit to the CA.** The CA's signing function accepts the external public
-   key and produces a signed leaf certificate containing it.
-4. **Receive signed certificate.** The CA returns the signed leaf cert (DER or
-   PEM encoded).
-5. **Associate certificate with the hardware key.** The signed cert is paired
-   with the `crypto.Signer` in a `tls.Certificate` for use in TLS handshakes.
-
-### Building a `tls.Certificate` with a hardware key
-
-When the private key lives in hardware, construct the `tls.Certificate`
-manually. The `PrivateKey` field accepts any `crypto.Signer`:
-
-```go
-// hwSigner is a crypto.Signer backed by a TPM or HSM.
-// leafDER and intermediateDER are the DER-encoded certificates from the CA.
-tlsCert := tls.Certificate{
-    Certificate: [][]byte{leafDER, intermediateDER},
-    PrivateKey:  hwSigner, // crypto.Signer — hardware handle, not raw key bytes
-}
-
-clientTLS := &tls.Config{
-    Certificates: []tls.Certificate{tlsCert},
-    RootCAs:      rootCAs,
-    MinVersion:   tls.VersionTLS12,
-}
-```
-
-The `Certificate` field is an ordered slice of DER-encoded certificates: the
-leaf first, followed by the intermediate. This is the same chain the peer
-receives during the TLS handshake. The root is omitted — the peer already has
-it in its trust pool.
-
-### CA signing functions that accept external public keys
-
-The `SignerFunc` pattern — where the CA's signing function accepts a
-`crypto.PublicKey` parameter — is what enables hardware-backed key workflows:
-
-```go
-// SignerFunc accepts an external public key, keeping key generation
-// completely separate from certificate signing.
-type SignerFunc func(pub crypto.PublicKey, cn string) (*x509.Certificate, error)
-```
-
-A `ProfiledSignerFunc` variant adds role-specific profiles (EKU, SANs) to the
-signature:
-
-```go
-// ProfiledSignerFunc extends SignerFunc with a leaf profile controlling EKU
-// and SANs. The caller provides the public key; the CA never sees the
-// private key.
-type ProfiledSignerFunc func(pub crypto.PublicKey, cn string, profile LeafProfile) (*x509.Certificate, error)
-```
-
-Because these functions accept `crypto.PublicKey` rather than generating keys
-internally, the same CA logic works for software keys, TPM keys, and HSM keys
-without modification. The caller generates (or retrieves) the key pair through
-whatever mechanism is appropriate, then passes only the public half to the CA.
-
----
-
-## 6. Trust Model
+## 4. Trust Model
 
 ### Trust pools contain the ROOT CA cert ONLY
 
@@ -376,56 +165,7 @@ nightmare in large deployments.
 
 ---
 
-## 7. Certificate Lifecycle
-
-### Issuance workflow
-
-1. **Generate key pair** on the target machine (or in an HSM/KMS).
-2. **Create CSR** (Certificate Signing Request) containing the public key and
-   requested SANs.
-3. **Submit CSR** to the intermediate CA.
-4. **CA signs** the CSR, producing the leaf certificate.
-5. **Distribute** the signed certificate and chain bundle to the service.
-6. **Verify** the chain: `openssl verify -CAfile root.pem -untrusted intermediate.pem leaf.pem`
-
-### Leaf certificate rotation
-
-1. Issue a new leaf certificate from the current intermediate CA.
-2. Deploy the new cert + key to the service.
-3. Reload the service's TLS config (graceful restart or hot-reload).
-4. Retire the old certificate (it expires naturally or is revoked).
-
-**Critical:** Issue the new cert BEFORE the old one expires. Overlap the
-validity periods to allow zero-downtime rotation.
-
-### Intermediate CA rotation
-
-1. Generate a new intermediate key pair.
-2. Sign the new intermediate certificate with the root CA.
-3. Re-issue all leaf certificates from the new intermediate.
-4. Deploy new chain bundles (new leaf + new intermediate) to all services.
-5. Services that trust only the root CA require NO trust pool changes.
-
-### Revocation
-
-Go's `crypto/tls` and `crypto/x509` have limited revocation support:
-
-- **CRL (Certificate Revocation List):** Go can parse CRLs
-  (`x509.ParseRevocationList`) but does not check them automatically during
-  TLS handshakes.
-- **OCSP (Online Certificate Status Protocol):** Go can staple OCSP responses
-  but does not fetch them automatically.
-
-For production systems, prefer short-lived certificates over revocation. A
-certificate that expires in 24 hours limits the exposure window without needing
-revocation infrastructure.
-
-If revocation is required, implement custom verification in a
-`tls.Config.VerifyPeerCertificate` callback.
-
----
-
-## 8. Go `tls.Config` Patterns
+## 5. Go `tls.Config` Patterns
 
 ### Minimal server config (one-way TLS)
 
@@ -500,7 +240,7 @@ func loadTrustPool(rootCAPEM []byte) (*x509.CertPool, error)
 
 ---
 
-## 9. Security Requirements Checklist
+## 6. Security Requirements Checklist
 
 Before deploying mTLS, verify every item:
 
@@ -521,7 +261,7 @@ Before deploying mTLS, verify every item:
 
 ---
 
-## 10. Testing Approach
+## 7. Testing Approach
 
 ### Integration tests, not mocks
 
@@ -590,7 +330,7 @@ triggers a TLS handshake failure.
 
 ---
 
-## 11. Common Mistakes
+## 8. Common Mistakes
 
 ### ❌ Trusting the intermediate CA instead of the root
 
@@ -700,7 +440,7 @@ tlsCert := tls.Certificate{
 
 ---
 
-## 12. Quick Reference
+## 9. Quick Reference
 
 ### `tls.ClientAuthType` values
 
@@ -743,7 +483,7 @@ import (
 
 ---
 
-## 13. Summary
+## 10. Summary
 
 mTLS ensures both sides of every connection are cryptographically
 authenticated. The key principles:

@@ -1,6 +1,16 @@
-# AGENTS.cli.md — PKI Operator CLI Tool
+# AGENTS.operator.md — PKI Operator Workflows
 
-You are an AI coding agent building a production CLI tool in Go that manages PKI (Public Key Infrastructure) for mutual TLS. This tool is used by operators to create certificate authorities, issue certificates, and distribute trust material to servers and clients.
+> **Parent:** [AGENTS.mtls.md](AGENTS.mtls.md) — mTLS concepts and architecture
+> **Layer:** Application
+> **Go package:** `operator.go` in each demo package
+
+> **Audience:** AI coding agents building a production CLI tool in Go that manages
+> PKI (Public Key Infrastructure) for mutual TLS. This tool is used by operators
+> to create certificate authorities, issue certificates, and distribute trust
+> material to servers and clients. For certificate creation APIs and domain logic
+> see [AGENTS.certs.md](AGENTS.certs.md).
+
+---
 
 ## PKI operator responsibilities
 
@@ -13,339 +23,12 @@ The CLI tool you are building automates the role of a PKI operator. The operator
 5. **Distribute identity material** — chain bundles (leaf + intermediate PEM) and private keys go to the party that owns them. A server gets its own chain bundle and key. A client gets its own chain bundle and key. Keys never cross boundaries.
 6. **Manage certificate lifecycle** — renew leaves before expiry, rotate intermediates periodically, handle revocation when keys are compromised.
 
-## Certificate generation with Go stdlib
-
-### Key packages
-
-```
-crypto/x509        — certificate templates, creation, parsing
-crypto/ecdsa       — ECDSA key generation
-crypto/elliptic    — curve definitions (use P-256)
-crypto/rand        — cryptographic random source
-crypto/sha256      — computing Subject Key Identifiers
-encoding/pem       — PEM encoding/decoding
-math/big           — serial number generation
-net                — net.IP for SAN IP addresses
-```
-
-### Root CA creation
-
-```go
-func CreateRootCA(cn string, validity time.Duration) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-    key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-    if err != nil {
-        return nil, nil, fmt.Errorf("generating root CA key: %w", err)
-    }
-
-    template := &x509.Certificate{
-        SerialNumber:          randomSerial(),
-        Subject:               pkix.Name{CommonName: cn},
-        NotBefore:             time.Now(),
-        NotAfter:              time.Now().Add(validity),
-        KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
-        BasicConstraintsValid: true,
-        IsCA:                  true,
-        SubjectKeyId:          computeSKID(key),
-    }
-
-    certDER, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
-    if err != nil {
-        return nil, nil, fmt.Errorf("creating root CA certificate: %w", err)
-    }
-
-    cert, err := x509.ParseCertificate(certDER)
-    if err != nil {
-        return nil, nil, fmt.Errorf("parsing root CA certificate: %w", err)
-    }
-
-    return cert, key, nil
-}
-```
-
-Key points:
-- `template` is both the template and the parent (self-signed).
-- `KeyUsage` includes `CertSign` (to sign child certs) and `CRLSign` (to sign revocation lists).
-- `IsCA: true` and `BasicConstraintsValid: true` are both required.
-- No `ExtKeyUsage` — CAs should not have extended key usage constraints.
-
-### Intermediate CA creation
-
-```go
-func CreateIntermediateCA(
-    cn string,
-    validity time.Duration,
-    rootCert *x509.Certificate,
-    rootKey *ecdsa.PrivateKey,
-) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-    intKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-    if err != nil {
-        return nil, nil, fmt.Errorf("generating intermediate CA key: %w", err)
-    }
-
-    template := &x509.Certificate{
-        SerialNumber:          randomSerial(),
-        Subject:               pkix.Name{CommonName: cn},
-        NotBefore:             time.Now(),
-        NotAfter:              time.Now().Add(validity),
-        KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
-        BasicConstraintsValid: true,
-        IsCA:                  true,
-        MaxPathLen:            0,
-        MaxPathLenZero:        true,
-        SubjectKeyId:          computeSKID(intKey),
-        AuthorityKeyId:        rootCert.SubjectKeyId,
-    }
-
-    certDER, err := x509.CreateCertificate(rand.Reader, template, rootCert, &intKey.PublicKey, rootKey)
-    if err != nil {
-        return nil, nil, fmt.Errorf("creating intermediate CA certificate: %w", err)
-    }
-
-    cert, err := x509.ParseCertificate(certDER)
-    if err != nil {
-        return nil, nil, fmt.Errorf("parsing intermediate CA certificate: %w", err)
-    }
-
-    return cert, intKey, nil
-}
-```
-
-Key points:
-- The parent is `rootCert`, not `template` — this is what makes it non-self-signed.
-- The signing key is `rootKey` — the root CA signs the intermediate.
-- `MaxPathLen: 0` with `MaxPathLenZero: true` prevents the intermediate from creating sub-intermediates. Both fields are required; `MaxPathLen: 0` alone is ambiguous in Go's x509 package.
-- `AuthorityKeyId` links this cert back to its issuer.
-
-### Leaf certificate with profile
-
-```go
-type LeafProfile struct {
-    ExtKeyUsage []x509.ExtKeyUsage // ServerAuth, ClientAuth, or both
-    DNSNames    []string           // for server certs (e.g., ["api.acme.corp"])
-    IPAddresses []net.IP           // for internal services (e.g., [127.0.0.1])
-}
-
-func CreateLeafCert(
-    cn string,
-    validity time.Duration,
-    profile LeafProfile,
-    issuerCert *x509.Certificate,
-    issuerKey *ecdsa.PrivateKey,
-) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-    leafKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-    if err != nil {
-        return nil, nil, fmt.Errorf("generating leaf key: %w", err)
-    }
-
-    template := &x509.Certificate{
-        SerialNumber:          randomSerial(),
-        Subject:               pkix.Name{CommonName: cn},
-        NotBefore:             time.Now(),
-        NotAfter:              time.Now().Add(validity),
-        KeyUsage:              x509.KeyUsageDigitalSignature,
-        ExtKeyUsage:           profile.ExtKeyUsage,
-        DNSNames:              profile.DNSNames,
-        IPAddresses:           profile.IPAddresses,
-        SubjectKeyId:          computeSKID(leafKey),
-        AuthorityKeyId:        issuerCert.SubjectKeyId,
-    }
-
-    certDER, err := x509.CreateCertificate(rand.Reader, template, issuerCert, &leafKey.PublicKey, issuerKey)
-    if err != nil {
-        return nil, nil, fmt.Errorf("creating leaf certificate: %w", err)
-    }
-
-    cert, err := x509.ParseCertificate(certDER)
-    if err != nil {
-        return nil, nil, fmt.Errorf("parsing leaf certificate: %w", err)
-    }
-
-    return cert, leafKey, nil
-}
-```
-
-Key points:
-- `KeyUsage` is `DigitalSignature` only — leaf certs must not have `CertSign`.
-- `ExtKeyUsage` comes from the profile. Use `x509.ExtKeyUsageServerAuth` for servers, `x509.ExtKeyUsageClientAuth` for clients. Never combine both on one cert.
-- `DNSNames` should be set on server certs. Clients typically do not need SANs.
-- `IsCA` is false (the zero value) — leaf certs are not CAs.
-
-## SignerFunc closure pattern
-
-CA private keys must **never** be returned to callers or stored in accessible variables. Use closures to capture the key:
-
-```go
-type SignerFunc func(cn string, profile LeafProfile) (*x509.Certificate, *ecdsa.PrivateKey, error)
-
-type SignIntermediateFunc func(cn string, validity time.Duration) (*x509.Certificate, SignerFunc, error)
-
-func CreateRootCA(cn string, validity time.Duration) (*x509.Certificate, SignIntermediateFunc, error) {
-    rootKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-    if err != nil {
-        return nil, nil, fmt.Errorf("generating root key: %w", err)
-    }
-
-    // ... create root cert (self-signed) ...
-
-    signIntermediate := func(intCN string, intValidity time.Duration) (*x509.Certificate, SignerFunc, error) {
-        // rootKey is captured here — never exposed outside this closure
-        intKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-        if err != nil {
-            return nil, nil, fmt.Errorf("generating intermediate key: %w", err)
-        }
-
-        // ... create intermediate cert signed by rootKey ...
-
-        signLeaf := func(leafCN string, profile LeafProfile) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-            // intKey is captured here — never exposed outside this closure
-            leafKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-            if err != nil {
-                return nil, nil, fmt.Errorf("generating leaf key: %w", err)
-            }
-
-            // ... create leaf cert signed by intKey ...
-
-            return leafCert, leafKey, nil
-            // leafKey IS returned — the leaf owner needs their private key.
-            // intKey is NOT returned — only the closure has it.
-        }
-
-        return intCert, signLeaf, nil
-    }
-
-    return rootCert, signIntermediate, nil
-    // rootKey is NOT returned — only the signIntermediate closure has it.
-}
-```
-
-Why this matters:
-- The root key exists only inside `signIntermediate`. After `CreateRootCA` returns, no caller can access it.
-- The intermediate key exists only inside `signLeaf`. After `signIntermediate` returns, no caller can access it.
-- Leaf private keys ARE returned — the server or client that owns the cert needs the key for TLS.
-- This pattern makes key leaks structurally impossible at the API level.
-
-### ProfiledSignerFunc for External Keys
-
-When leaf private keys live inside hardware (TPM, HSM, smart card), the CA cannot generate the key pair — the hardware does. The CA only sees the public key. A `ProfiledSignerFunc` accepts an externally-provided `crypto.PublicKey` instead of generating its own key pair:
-
-```go
-// ProfiledSignerFunc signs a certificate for an externally-provided public key.
-// The CA's private key is captured in the closure — never exposed.
-type ProfiledSignerFunc func(publicKey crypto.PublicKey, cn string, profile LeafProfile) (*x509.Certificate, error)
-```
-
-Note the differences from the standard `SignerFunc`:
-- **Input:** receives a `crypto.PublicKey` from the caller (the hardware-generated public key).
-- **Output:** returns only the signed `*x509.Certificate` — no private key. The private key never left the hardware.
-
-Typical workflow with a TPM-backed client key:
-
-1. **TPM generates the key pair.** The private key is non-exportable — it exists only inside the TPM.
-2. **Export the public key.** The TPM provides the `crypto.PublicKey` (e.g., `*ecdsa.PublicKey`).
-3. **Submit to ProfiledSignerFunc.** Pass the public key, common name, and a client leaf profile. The closure signs a certificate using the intermediate CA's captured private key.
-4. **Receive the signed certificate.** The result is a standard `*x509.Certificate` with `ExtKeyUsageClientAuth`.
-5. **Store the certificate.** Import the signed cert into the OS certificate store (e.g., Windows cert store), associated with the TPM key handle. The store import function requires the direct issuer certificate (the intermediate CA cert, not the root) to build the chain.
-
-At TLS time, the client presents the certificate from the store, and the TPM performs signing operations via `crypto.Signer` — the private key is used but never exposed to user-space code.
-
-This pattern is essential for any environment where keys must not exist in software: TPM-backed workstation identity, HSM-backed service identity, or smart-card-based operator authentication.
-
-## Helper functions
-
-### randomSerial — 128-bit random serial number
-
-```go
-func randomSerial() *big.Int {
-    max := new(big.Int).Lsh(big.NewInt(1), 128)
-    serial, err := rand.Int(rand.Reader, max)
-    if err != nil {
-        panic(fmt.Sprintf("generating serial number: %v", err))
-    }
-    return serial
-}
-```
-
-Serial numbers must be unique across all certificates issued by a CA. Using 128-bit random values makes collisions astronomically unlikely without needing a database.
-
-### computeSKID — Subject Key Identifier
-
-```go
-func computeSKID(key *ecdsa.PrivateKey) []byte {
-    pubBytes, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
-    if err != nil {
-        panic(fmt.Sprintf("marshaling public key: %v", err))
-    }
-    hash := sha256.Sum256(pubBytes)
-    return hash[:]
-}
-```
-
-SKID is set on every certificate and used as `AuthorityKeyId` on child certificates. This creates a chain of identifiers that aids debugging and certificate chain validation.
-
-### WriteCert — write PEM certificate to disk
-
-```go
-func WriteCert(path string, cert *x509.Certificate) error {
-    if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-        return fmt.Errorf("creating directory for %s: %w", path, err)
-    }
-    f, err := os.Create(path)
-    if err != nil {
-        return fmt.Errorf("creating cert file %s: %w", path, err)
-    }
-    defer f.Close()
-
-    return pem.Encode(f, &pem.Block{
-        Type:  "CERTIFICATE",
-        Bytes: cert.Raw,
-    })
-}
-```
-
-### WriteKey — write PEM private key with restricted permissions
-
-```go
-func WriteKey(path string, keyDER []byte) error {
-    if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-        return fmt.Errorf("creating directory for %s: %w", path, err)
-    }
-    f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
-    if err != nil {
-        return fmt.Errorf("creating key file %s: %w", path, err)
-    }
-    defer f.Close()
-
-    return pem.Encode(f, &pem.Block{
-        Type:  "EC PRIVATE KEY",
-        Bytes: keyDER,
-    })
-}
-```
-
-The `0600` permission ensures only the file owner can read the private key. This is critical — world-readable key files are a common and severe misconfiguration.
-
-### WriteChainBundle — concatenate leaf + intermediate PEM
-
-```go
-func WriteChainBundle(path string, leaf, intermediate *x509.Certificate) error {
-    if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-        return fmt.Errorf("creating directory for %s: %w", path, err)
-    }
-    f, err := os.Create(path)
-    if err != nil {
-        return fmt.Errorf("creating chain bundle %s: %w", path, err)
-    }
-    defer f.Close()
-
-    // Leaf first, then intermediate — standard TLS presentation order
-    if err := pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: leaf.Raw}); err != nil {
-        return err
-    }
-    return pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: intermediate.Raw})
-}
-```
-
-Chain bundles are what servers and clients present during the TLS handshake. The peer uses the chain to build a path from the leaf to a trusted root.
+> **Certificate creation code:** `CreateRootCA`, `CreateIntermediateCA`, `CreateLeafCert`,
+> `SignerFunc`, `ProfiledSignerFunc`, and helper functions (`randomSerial`, `computeSKID`,
+> `WriteCert`, `WriteKey`, `WriteChainBundle`) are documented in
+> [AGENTS.certs.md](AGENTS.certs.md).
+
+---
 
 ## File layout and ownership boundaries
 
@@ -374,7 +57,9 @@ Design principles:
 Enterprise PKI notes:
 - **Intermediate CA cert appears in two places:** its own file (`intermediate-ca/cert.crt`) AND inside every chain bundle (`server/chain.crt`, `client/chain.crt`). The standalone copy is used during cert issuance; the copies inside chain bundles are used during TLS handshakes.
 - **Root CA cert is NOT in chain bundles.** The root cert only appears in trust pool configuration files (`server/root-ca.crt`, `client/root-ca.crt`). TLS peers use the trust pool to verify the chain, not the chain bundle.
-- **Cert store imports require the direct issuer.** When storing a leaf cert in an OS certificate store (e.g., Windows cert store via `StoreWithDisposition` or equivalent), you must provide the immediate issuer certificate — the intermediate CA cert, not the root. The store uses this to build the local chain association. Passing the root instead of the intermediate will cause chain-building failures at TLS time.
+- **Cert store imports require the direct issuer.** When storing a leaf cert in an OS certificate store (e.g., Windows cert store via `StoreWithDisposition` or equivalent), you must provide the immediate issuer certificate — the intermediate CA cert, not the root. The store uses this to build the local chain association. Passing the root instead of the intermediate will cause chain-building failures at TLS time. See [AGENTS.certs.md — Certificate store operations](AGENTS.certs.md#certificate-store-operations-certtostore) for the Go API.
+
+---
 
 ## Key protection
 
@@ -413,6 +98,8 @@ The intermediate CA key should exist only in memory during CLI execution when po
 | Development | File on disk (0600) | In-memory during CLI run | File on disk (0600) |
 | Staging | Encrypted file, offline | Encrypted file or key vault | File on disk (0600) |
 | Production | HSM (PKCS#11) or offline | HSM or cloud KMS | File, cert store, or TPM |
+
+---
 
 ## TOML configuration pattern
 
@@ -464,6 +151,8 @@ type LeafConfig struct {
 ```
 
 Parse the config with `github.com/BurntSushi/toml` or `github.com/pelletier/go-toml/v2`.
+
+---
 
 ## CLI command structure
 
@@ -557,6 +246,8 @@ func VerifyChain(chainFile, rootCertFile string) error {
 }
 ```
 
+---
+
 ## Distribution workflow
 
 The operator is responsible for getting the right files to the right parties. The CLI tool generates files; the operator (or automation) distributes them.
@@ -588,6 +279,8 @@ The CLI should support `--output-dir` to control where files are written, and `-
   }
 }
 ```
+
+---
 
 ## Rotation workflows
 
@@ -633,6 +326,8 @@ The key insight: intermediate rotation is invisible to trust pools. Every party 
 7. After the transition period, remove the old root from trust pools.
 
 Root rotation affects every service and every client. Plan for a long transition period where both roots are trusted.
+
+---
 
 ## Negative-path testing
 
@@ -687,6 +382,8 @@ When the server rejects an untrusted client, Go's HTTP server logs a TLS error t
 server.ErrorLog = log.New(io.Discard, "", 0)
 ```
 
+---
+
 ## Common mistakes
 
 | Mistake | Why it's wrong | Correct approach |
@@ -703,6 +400,8 @@ server.ErrorLog = log.New(io.Discard, "", 0)
 | Skipping `AuthorityKeyId` on child certs | Debugging chain issues becomes difficult; some validators warn | Set `AuthorityKeyId` to the issuer's `SubjectKeyId` |
 | Using RSA instead of ECDSA | RSA keys are larger and slower for equivalent security | Use ECDSA P-256 for all keys |
 | Not setting `MinVersion: tls.VersionTLS12` | Allows negotiation of TLS 1.0/1.1 which have known vulnerabilities | Always set `MinVersion: tls.VersionTLS12` on `tls.Config` |
+
+---
 
 ## Security checklist
 

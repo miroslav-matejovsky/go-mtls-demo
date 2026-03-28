@@ -1,6 +1,10 @@
 # AGENTS.client.md — Production mTLS Client in Go
 
-You are implementing an HTTP client that authenticates to servers using mutual TLS (mTLS). The client presents its own certificate during the TLS handshake, and the server verifies it against a trusted CA. This guide covers every pattern you need.
+> **Parent:** [AGENTS.mtls.md](AGENTS.mtls.md) — mTLS concepts and architecture
+> **Layer:** Adapter
+> **Go package:** `client.go` in each demo package
+
+You are implementing an HTTP client that authenticates to servers using mutual TLS (mTLS). The client presents its own certificate during the TLS handshake, and the server verifies it against a trusted CA. This guide covers every pattern you need. For certificate creation and chain bundle format see [AGENTS.certs.md](AGENTS.certs.md).
 
 ## Client TLS configuration
 

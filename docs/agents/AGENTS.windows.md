@@ -1,7 +1,13 @@
 # AGENTS.windows.md — Windows Server mTLS Deployment Guide
 
+> **Parent:** [AGENTS.mtls.md](AGENTS.mtls.md) — mTLS concepts and architecture
+> **Layer:** Infrastructure
+> **Related:** [AGENTS.certs.md](AGENTS.certs.md) (certificate domain + certtostore API) · [AGENTS.operator.md](AGENTS.operator.md) (PKI workflows)
+
 > **Audience:** AI coding agent deploying a Go mutual-TLS (mTLS) application on Windows Server.
-> This guide is self-contained. Drop it into any production Go repository that uses mTLS.
+> This guide covers Windows platform infrastructure — certificate store management,
+> NCrypt/CNG providers, service configuration, and troubleshooting. For the Go
+> `certtostore` API and certificate domain logic see [AGENTS.certs.md](AGENTS.certs.md).
 
 ---
 
@@ -144,114 +150,29 @@ advantage over file-based keys.
 
 ### Go integration pattern
 
-```go
-// Conceptual pattern — actual API depends on the library used.
-// The library wraps Windows CNG / NCrypt behind crypto.Signer.
-
-// Open the certificate store with the Platform Crypto Provider (TPM)
-store := openCertStore("Microsoft Platform Crypto Provider", containerName)
-
-// Find the certificate by common name
-cert := store.FindByCommonName("myservice.internal")
-
-// Get a crypto.Signer backed by the TPM key handle
-signer := store.GetSigner(cert) // implements crypto.Signer
-
-// Build the tls.Certificate
-tlsCert := tls.Certificate{
-    Certificate: [][]byte{cert.Raw},
-    PrivateKey:  signer,
-    Leaf:        cert,
-}
-```
+> **Full `certtostore` API reference:** See [AGENTS.certs.md — Certificate store operations](AGENTS.certs.md#certificate-store-operations-certtostore)
+> for `OpenWinCertStoreCurrentUser`, `Generate`, `StoreWithDisposition`,
+> `CertByCommonName`, `CertKey`, and the complete enterprise PKI enrollment workflow in Go.
 
 ### Presenting the full chain
 
 If the server or client must present an intermediate CA during the TLS handshake, include
-it in the `Certificate` slice:
-
-```go
-tlsCert.Certificate = [][]byte{leafCert.Raw, intermediateCert.Raw}
-```
-
-The order is leaf first, then intermediates. The root CA is **not** included — the peer
-obtains it from its own trust pool.
-
-For enterprise PKI with multiple CA tiers, include **all** intermediates between the leaf
-and root, in order from leaf to highest intermediate:
-
-```go
-// Enterprise PKI: leaf + all intermediates (root is NOT included)
-tlsCert.Certificate = [][]byte{
-    leafCert.Raw,           // leaf cert signed by intermediate
-    intermediateCert.Raw,   // intermediate CA (direct issuer)
-}
-```
-
-> **Note:** For enterprise PKI with multiple CA tiers, include all intermediates between
-> the leaf and root, in order from leaf to highest intermediate. The root CA is never
-> included — peers have it in their trust pool.
+it in the `Certificate` slice. The order is leaf first, then intermediates. The root CA
+is **not** included — the peer obtains it from its own trust pool. See
+[AGENTS.certs.md — Chain Bundles](AGENTS.certs.md#chain-bundles) for the full format specification.
 
 ### Key generation via CNG
 
-When generating a new TPM-backed key for certificate enrollment:
-
-```go
-// Generate a new ECDSA P-256 key inside the TPM
-store.Generate(GenerateOpts{Algorithm: "EC", Size: 256})
-
-// After signing the CSR and receiving the signed certificate:
-store.StoreCertificate(signedCert, caCert)
-```
-
-The private key exists only as a TPM key handle. The signed certificate is stored in the
-Windows cert store and associated with that key handle.
+Generate TPM-backed ECDSA keys using `certtostore.Generate(GenerateOpts{EC, 256})`.
+The private key exists only as a TPM key handle. See
+[AGENTS.certs.md — Key generation](AGENTS.certs.md#key-generation) for the Go API.
 
 ### Generating TPM-backed Keys for Enterprise PKI
 
-In an enterprise PKI environment, the TPM generates the key pair, but an intermediate CA
-(not the root) signs the leaf certificate. The full workflow:
-
-1. **Generate key inside TPM** — use CNG / NCrypt via a wrapper library
-2. **Export the public key** — only the public half leaves the TPM
-3. **Submit to intermediate CA** — via CLI tool, AD CS web enrollment, or REST API
-4. **Receive signed cert + intermediate CA cert** — the CA returns both
-5. **Import into Windows cert store** — associate the signed cert with the TPM key handle
-
-```go
-// Full enterprise TPM enrollment workflow (conceptual — actual API depends on library)
-
-// 1. Open the store with the Platform Crypto Provider (TPM)
-store := openCertStore("Microsoft Platform Crypto Provider", containerName)
-
-// 2. Generate a new ECDSA P-256 key inside the TPM
-store.Generate(GenerateOpts{Algorithm: "EC", Size: 256})
-
-// 3. Export the public key and build a CSR
-pubKey := store.PublicKey()
-csr := buildCSR(pubKey, "myservice.internal") // sign CSR with TPM key
-
-// 4. Submit CSR to intermediate CA and receive the signed certificate
-// This step is environment-specific: AD CS certreq, ACME, EST, or a custom API
-signedCert, intermediateCert := submitToIntermediateCA(csr)
-
-// 5. Import the signed cert + intermediate into the store
-// StoreWithDisposition requires the intermediate cert (direct issuer)
-// as the second argument — the library uses it to build the chain and
-// associate the cert with the correct CA.
-store.StoreWithDisposition(signedCert, intermediateCert, 3) // 3 = CERT_STORE_ADD_REPLACE_EXISTING
-
-// 6. Build the tls.Certificate with the full chain
-signer := store.GetSigner(signedCert) // crypto.Signer backed by TPM
-tlsCert := tls.Certificate{
-    Certificate: [][]byte{
-        signedCert.Raw,       // leaf cert
-        intermediateCert.Raw, // intermediate CA (direct issuer)
-    },
-    PrivateKey: signer,
-    Leaf:       signedCert,
-}
-```
+> **Full enrollment workflow:** See
+> [AGENTS.certs.md — Enterprise PKI enrollment workflow](AGENTS.certs.md#enterprise-pki-enrollment-workflow)
+> for the complete Go code: key generation → public key export → intermediate CA signing →
+> `StoreWithDisposition` import → `tls.Certificate` construction.
 
 **Key points:**
 - `StoreWithDisposition` requires the **intermediate cert** (direct issuer) as its second
@@ -301,19 +222,8 @@ Get-ChildItem "Cert:\LocalMachine\My" |
 
 **Programmatic cleanup in Go:**
 
-```go
-// Conceptual pattern — actual API depends on the library used.
-
-// Open the store
-store := openCertStore("Microsoft Platform Crypto Provider", containerName)
-
-// Delete the key container and associated certificate
-store.DeleteKeyContainer(containerName)
-
-// Alternatively, remove the certificate from the store (key container
-// may need separate cleanup depending on the library)
-store.RemoveCertByCommonName("myservice.internal")
-```
+> See [AGENTS.certs.md — Cleanup](AGENTS.certs.md#cleanup) for Go-based
+> `certtostore` cleanup patterns (`DeleteKeyContainer`, `RemoveCertByCommonName`).
 
 > **Always clean up NCrypt containers and cert store entries when decommissioning
 > services.** Orphaned TPM key handles consume limited TPM storage, and stale certificates

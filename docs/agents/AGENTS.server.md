@@ -1,6 +1,10 @@
 # AGENTS.server.md — Production mTLS Server in Go
 
-You are implementing a production Go HTTP server that requires mutual TLS (mTLS). This guide covers every aspect of server-side mTLS configuration: TLS setup, certificate loading, trust pools, timeouts, graceful shutdown, health checks, logging, certificate rotation, and common mistakes.
+> **Parent:** [AGENTS.mtls.md](AGENTS.mtls.md) — mTLS concepts and architecture
+> **Layer:** Adapter
+> **Go package:** `server.go` in each demo package
+
+You are implementing a production Go HTTP server that requires mutual TLS (mTLS). This guide covers every aspect of server-side mTLS configuration: TLS setup, certificate loading, trust pools, timeouts, graceful shutdown, health checks, logging, certificate rotation, and common mistakes. For certificate creation and chain bundle format see [AGENTS.certs.md](AGENTS.certs.md).
 
 All code targets Go's standard library (`crypto/tls`, `crypto/x509`, `net/http`). No third-party TLS libraries are needed.
 
@@ -333,64 +337,14 @@ tlsCfg := &tls.Config{
 
 On Windows servers with a Trusted Platform Module (TPM), the server's private key can be stored in hardware via the platform Key Storage Provider (KSP). The key never leaves the TPM — TLS handshakes are signed inside the module. The certificate and any chain intermediates are retrieved from the Windows certificate store.
 
-Use a library such as `github.com/google/certtostore` to access the Windows cert store and TPM signer:
+> **Full `certtostore` API reference:** See [AGENTS.certs.md — Certificate store operations](AGENTS.certs.md#certificate-store-operations-certtostore)
+> for `OpenWinCertStoreCurrentUser`, `Generate`, `StoreWithDisposition`,
+> `CertByCommonName`, `CertKey`, and cleanup patterns.
+
+Wire the `tls.Certificate` returned from `certtostore` into `tls.Config.Certificates` exactly like a file-loaded certificate:
 
 ```go
-import (
-    "context"
-    "crypto/tls"
-    "fmt"
-
-    "github.com/google/certtostore"
-)
-
-func serverCertFromStore(cn string, intermediateDER []byte) (tls.Certificate, func(), error) {
-    store, err := certtostore.OpenWinCertStoreCurrentUser(
-        certtostore.ProviderMSPlatform, // Microsoft Platform Crypto Provider (TPM)
-        cn,                             // NCrypt container name
-        nil,                            // issuer filter — nil means any issuer
-        nil,                            // intermediate certs (optional)
-        false,                          // requireHardware — true to reject software-only KSP
-    )
-    if err != nil {
-        return tls.Certificate{}, nil, fmt.Errorf("opening cert store: %w", err)
-    }
-
-    // Retrieve the leaf certificate by CN from the store.
-    cert, err := store.CertByCommonName(cn)
-    if err != nil {
-        store.Close()
-        return tls.Certificate{}, nil, fmt.Errorf("finding certificate %q in store: %w", cn, err)
-    }
-
-    // Obtain the TPM-backed crypto.Signer for TLS handshakes.
-    key, err := store.CertKey(context.Background())
-    if err != nil {
-        store.Close()
-        return tls.Certificate{}, nil, fmt.Errorf("obtaining TPM signer for %q: %w", cn, err)
-    }
-
-    // Build the tls.Certificate with the full chain (leaf + intermediate).
-    tlsCert := tls.Certificate{
-        Certificate: [][]byte{cert.Raw}, // leaf DER
-        PrivateKey:  key,                // crypto.Signer backed by TPM
-    }
-
-    // In enterprise PKI, append the intermediate so clients can build
-    // the chain back to the root CA.
-    if len(intermediateDER) > 0 {
-        tlsCert.Certificate = append(tlsCert.Certificate, intermediateDER)
-    }
-
-    cleanup := func() { store.Close() }
-    return tlsCert, cleanup, nil
-}
-```
-
-Wire the returned `tls.Certificate` into `tls.Config.Certificates` exactly like a file-loaded certificate:
-
-```go
-tlsCert, cleanup, err := serverCertFromStore("myserver.example.com", intermediateDER)
+tlsCert, cleanup, err := certFromStore("myserver.example.com", intermediateDER)
 if err != nil {
     return fmt.Errorf("loading TPM-backed server cert: %w", err)
 }
@@ -404,20 +358,7 @@ tlsCfg := &tls.Config{
 }
 ```
 
-**How it works:** `certtostore` opens the Windows certificate store via CryptoAPI, locates the certificate, and returns a `*certtostore.Key` that implements `crypto.Signer`. All `Sign` calls are dispatched to the TPM through the NCrypt API — the private key material is never exported to user-space memory.
-
-**NCrypt container cleanup.** When decommissioning a server, remove the orphaned NCrypt container and certificate from the Windows store to avoid key accumulation:
-
-```powershell
-# Remove the certificate from the current user's personal store
-$cert = Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Subject -match "CN=myserver.example.com" }
-Remove-Item -Path $cert.PSPath
-
-# Delete the NCrypt key container
-certutil -user -deleteKSPKey "Microsoft Platform Crypto Provider" "myserver.example.com"
-```
-
-Automate this in your decommissioning runbook. Leftover TPM-backed containers consume finite storage slots on hardware TPMs.
+**NCrypt container cleanup.** When decommissioning a server, remove the orphaned NCrypt container and certificate from the Windows store to avoid key accumulation. See [AGENTS.windows.md](AGENTS.windows.md) for PowerShell cleanup commands.
 
 ---
 
