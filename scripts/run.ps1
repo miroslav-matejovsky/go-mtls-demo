@@ -1,6 +1,6 @@
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('tlsmem', 'mtlsmem', 'tlsfiles', 'mtlsfiles', 'mtlsenterprise', 'mtlstpm')]
+    [ValidateSet('tlsmem', 'mtlsmem', 'tlsfiles', 'mtlsfiles', 'mtlsenterprise', 'mtlsenterprisetpm', 'mtlstpm')]
     [string]$Mode
 )
 
@@ -15,6 +15,8 @@ if (-not $Mode) {
     Write-Host "  mtlsfiles Mutual TLS   — certificates written to certs/mtlsfiles/ and loaded from disk"
     Write-Host "  mtlsenterprise"
     Write-Host "            Mutual TLS   — intermediate CA, role-specific EKU, DNS SANs, chain bundles"
+    Write-Host "  mtlsenterprisetpm"
+    Write-Host "            Mutual TLS   — enterprise PKI + client key in Windows cert store + TPM (Windows only)"
     Write-Host "  mtlstpm   Mutual TLS   — server: files on disk; client: Windows cert store + TPM key (Windows only)"
     Write-Host ""
     exit 0
