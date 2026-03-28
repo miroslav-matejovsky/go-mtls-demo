@@ -1,0 +1,10 @@
+# ─── Untrusted Client (negative test) ─────────────────────────────────────────
+# A separate enterprise PKI hierarchy (root + intermediate + client) is generated
+# in-memory. The server does not trust this root CA, so the handshake is rejected.
+[untrusted_client]
+root_ca_cn         = "go mTLS Enterprise TPM Untrusted Root CA"
+intermediate_ca_cn = "go mTLS Enterprise TPM Untrusted Intermediate CA"
+cn                 = "go mTLS Enterprise TPM Untrusted Client"
+chain_file         = "certs/mtlsenterprisetpm/untrusted/chain.crt"
+key_file           = "certs/mtlsenterprisetpm/untrusted/client.key"
+root_cert_file     = "certs/mtlsenterprisetpm/untrusted/root-ca.crt"

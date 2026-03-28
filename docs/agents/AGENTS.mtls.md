@@ -232,7 +232,101 @@ chainPEM = append(chainPEM, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", B
 
 ---
 
-## 5. Trust Model
+## 5. Hardware-Backed Keys
+
+### `crypto.Signer` — the abstraction for hardware keys
+
+Go's `crypto.Signer` interface is the standard abstraction for private keys
+that may live in hardware:
+
+```go
+type Signer interface {
+    Public() crypto.PublicKey
+    Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error)
+}
+```
+
+Software keys (`*ecdsa.PrivateKey`, `*rsa.PrivateKey`) implement `crypto.Signer`
+natively. TPM and HSM libraries provide their own implementations where the
+`Sign` method issues a command to the hardware — the private key material never
+leaves the secure boundary.
+
+### Why hardware-backed keys matter
+
+A TPM (Trusted Platform Module) or HSM (Hardware Security Module) generates the
+key pair internally. Only the public key is exportable. The private key is used
+exclusively via the `Sign` method, which delegates to the hardware. Even a
+root-level compromise of the host cannot extract the raw key bytes.
+
+### Issuance workflow with hardware keys
+
+The standard CSR workflow adapts naturally to hardware-backed keys:
+
+1. **Generate key in hardware.** The TPM/HSM creates an ECDSA P-256 key pair.
+   The private key is non-exportable.
+2. **Export the public key.** The `crypto.Signer.Public()` method returns the
+   `crypto.PublicKey` without exposing private material.
+3. **Submit to the CA.** The CA's signing function accepts the external public
+   key and produces a signed leaf certificate containing it.
+4. **Receive signed certificate.** The CA returns the signed leaf cert (DER or
+   PEM encoded).
+5. **Associate certificate with the hardware key.** The signed cert is paired
+   with the `crypto.Signer` in a `tls.Certificate` for use in TLS handshakes.
+
+### Building a `tls.Certificate` with a hardware key
+
+When the private key lives in hardware, construct the `tls.Certificate`
+manually. The `PrivateKey` field accepts any `crypto.Signer`:
+
+```go
+// hwSigner is a crypto.Signer backed by a TPM or HSM.
+// leafDER and intermediateDER are the DER-encoded certificates from the CA.
+tlsCert := tls.Certificate{
+    Certificate: [][]byte{leafDER, intermediateDER},
+    PrivateKey:  hwSigner, // crypto.Signer — hardware handle, not raw key bytes
+}
+
+clientTLS := &tls.Config{
+    Certificates: []tls.Certificate{tlsCert},
+    RootCAs:      rootCAs,
+    MinVersion:   tls.VersionTLS12,
+}
+```
+
+The `Certificate` field is an ordered slice of DER-encoded certificates: the
+leaf first, followed by the intermediate. This is the same chain the peer
+receives during the TLS handshake. The root is omitted — the peer already has
+it in its trust pool.
+
+### CA signing functions that accept external public keys
+
+The `SignerFunc` pattern — where the CA's signing function accepts a
+`crypto.PublicKey` parameter — is what enables hardware-backed key workflows:
+
+```go
+// SignerFunc accepts an external public key, keeping key generation
+// completely separate from certificate signing.
+type SignerFunc func(pub crypto.PublicKey, cn string) (*x509.Certificate, error)
+```
+
+A `ProfiledSignerFunc` variant adds role-specific profiles (EKU, SANs) to the
+signature:
+
+```go
+// ProfiledSignerFunc extends SignerFunc with a leaf profile controlling EKU
+// and SANs. The caller provides the public key; the CA never sees the
+// private key.
+type ProfiledSignerFunc func(pub crypto.PublicKey, cn string, profile LeafProfile) (*x509.Certificate, error)
+```
+
+Because these functions accept `crypto.PublicKey` rather than generating keys
+internally, the same CA logic works for software keys, TPM keys, and HSM keys
+without modification. The caller generates (or retrieves) the key pair through
+whatever mechanism is appropriate, then passes only the public half to the CA.
+
+---
+
+## 6. Trust Model
 
 ### Trust pools contain the ROOT CA cert ONLY
 
@@ -282,7 +376,7 @@ nightmare in large deployments.
 
 ---
 
-## 6. Certificate Lifecycle
+## 7. Certificate Lifecycle
 
 ### Issuance workflow
 
@@ -331,7 +425,7 @@ If revocation is required, implement custom verification in a
 
 ---
 
-## 7. Go `tls.Config` Patterns
+## 8. Go `tls.Config` Patterns
 
 ### Minimal server config (one-way TLS)
 
@@ -406,7 +500,7 @@ func loadTrustPool(rootCAPEM []byte) (*x509.CertPool, error)
 
 ---
 
-## 8. Security Requirements Checklist
+## 9. Security Requirements Checklist
 
 Before deploying mTLS, verify every item:
 
@@ -427,7 +521,7 @@ Before deploying mTLS, verify every item:
 
 ---
 
-## 9. Testing Approach
+## 10. Testing Approach
 
 ### Integration tests, not mocks
 
@@ -496,7 +590,7 @@ triggers a TLS handshake failure.
 
 ---
 
-## 10. Common Mistakes
+## 11. Common Mistakes
 
 ### ❌ Trusting the intermediate CA instead of the root
 
@@ -564,9 +658,49 @@ the blast radius of a key compromise.
 
 **Fix:** Root signs intermediates only. Intermediates sign leaves.
 
+### ❌ Forgetting the intermediate CA in the TLS chain
+
+**Symptom:** Peers report `x509: certificate signed by unknown authority` even
+though the root CA is correctly configured in the trust pool.
+
+**Cause:** The TLS chain bundle contains only the leaf certificate. Without the
+intermediate, the verifier cannot build the path from leaf to root — the leaf's
+issuer (AKID) points to an intermediate the peer has never seen.
+
+**Fix:** Always present the full chain: leaf + intermediate. Whether loading
+from files or constructing programmatically, ensure the intermediate
+immediately follows the leaf:
+
+```go
+tlsCert := tls.Certificate{
+    Certificate: [][]byte{leafDER, intermediateDER}, // both required
+    PrivateKey:  key,
+}
+```
+
+### ❌ Exposing private keys instead of using `crypto.Signer`
+
+**Symptom:** Private key material exists as raw bytes in memory, on disk, or in
+environment variables — vulnerable to extraction via memory dumps, disk access,
+or process inspection.
+
+**Fix:** Production systems should generate keys in hardware (TPM or HSM) and
+interact with them exclusively through the `crypto.Signer` interface. The
+private key never leaves the secure boundary. Software keys (`*ecdsa.PrivateKey`)
+also implement `crypto.Signer`, so code written against the interface works
+identically with both software and hardware keys:
+
+```go
+// Works with *ecdsa.PrivateKey, TPM-backed signers, and HSM-backed signers
+tlsCert := tls.Certificate{
+    Certificate: [][]byte{leafDER, intermediateDER},
+    PrivateKey:  signer, // any crypto.Signer
+}
+```
+
 ---
 
-## 11. Quick Reference
+## 12. Quick Reference
 
 ### `tls.ClientAuthType` values
 
@@ -609,7 +743,7 @@ import (
 
 ---
 
-## 12. Summary
+## 13. Summary
 
 mTLS ensures both sides of every connection are cryptographically
 authenticated. The key principles:

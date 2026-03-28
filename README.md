@@ -19,6 +19,7 @@ mTLS (mutual)   Client ──── verify server cert ────► Server
 | [tlsfiles](internal/tlsfiles/README.md)   | One-way TLS | Written to `certs/tlsfiles/`                                    |
 | [mtlsfiles](internal/mtlsfiles/README.md) | Mutual TLS  | Written to `certs/mtlsfiles/`                                   |
 | [mtlsenterprise](internal/mtlsenterprise/README.md) | Mutual TLS  | Intermediate CA, role-specific EKU, DNS SANs, chain bundles     |
+| [mtlsenterprisetpm](internal/mtlsenterprisetpm/README.md) | Mutual TLS  | Enterprise PKI + client key in Windows cert store + TPM (Windows only) |
 | [mtlstpm](internal/mtlstpm/README.md)     | Mutual TLS  | Server: files · Client: Windows cert store + TPM (Windows only) |
 
 ## Guidance
@@ -41,8 +42,8 @@ The [docs/agents/](docs/agents/) folder contains standalone AGENTS.md files that
 ## Running
 
 ```pwsh
-go run ./cmd/ <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlsenterprise|mtlstpm>
-.\scripts\run.ps1  <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlsenterprise|mtlstpm>
+go run ./cmd/ <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlsenterprise|mtlsenterprisetpm|mtlstpm>
+.\scripts\run.ps1  <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlsenterprise|mtlsenterprisetpm|mtlstpm>
 ```
 
 ## References

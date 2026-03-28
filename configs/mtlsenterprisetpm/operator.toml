@@ -1,0 +1,9 @@
+[root_ca]
+cn        = "go mTLS Enterprise TPM Root CA"
+cert_file = "certs/mtlsenterprisetpm/root-ca/cert.crt"
+validity  = "8760h"
+
+[intermediate_ca]
+cn        = "go mTLS Enterprise TPM Intermediate CA"
+cert_file = "certs/mtlsenterprisetpm/intermediate-ca/cert.crt"
+validity  = "720h"

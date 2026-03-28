@@ -20,6 +20,8 @@ go run ./cmd/ tlsmem
 go run ./cmd/ mtlsmem
 go run ./cmd/ tlsfiles
 go run ./cmd/ mtlsfiles
+go run ./cmd/ mtlsenterprise
+go run ./cmd/ mtlsenterprisetpm   # Windows only — requires Windows cert store + TPM (or software KSP fallback)
 go run ./cmd/ mtlstpm   # Windows only — requires Windows cert store + TPM (or software KSP fallback)
 
 # Via PowerShell script
@@ -27,6 +29,8 @@ pwsh scripts/run.ps1 tlsmem
 pwsh scripts/run.ps1 mtlsmem
 pwsh scripts/run.ps1 tlsfiles
 pwsh scripts/run.ps1 mtlsfiles
+pwsh scripts/run.ps1 mtlsenterprise
+pwsh scripts/run.ps1 mtlsenterprisetpm
 pwsh scripts/run.ps1 mtlstpm
 ```
 
@@ -45,6 +49,7 @@ internal/
   tlsfiles/    – one-way TLS,   certs written to certs/tlsfiles/ and loaded from disk
   mtlsfiles/   – mutual TLS,    certs written to certs/mtlsfiles/ and loaded from disk
   mtlsenterprise/ – mutual TLS, intermediate CA, role-specific EKU, DNS SANs, chain bundles
+  mtlsenterprisetpm/ – mutual TLS, enterprise PKI + client key in Windows cert store + TPM (Windows only)
   mtlstpm/     – mutual TLS,    server: files in certs/mtlstpm/; client: Windows cert store + TPM (Windows only)
 ```
 
@@ -57,7 +62,7 @@ Each demo package has the same four-file structure:
 | `client.go` | `CreateClient(...)` — builds an `http.Client` with the right TLS config |
 | `demo.go`   | `RunDemo()` — orchestrates the full flow with narrative step output |
 
-`cmd/main.go` is a thin dispatcher: it reads `os.Args[1]` (`tlsmem`, `mtlsmem`, `tlsfiles`, `mtlsfiles`, or `mtlstpm`) and calls the appropriate `RunDemo()`. No arg → usage error; unknown arg → error. No default. `mtlstpm` is dispatched via `cmd/mtlstpm_windows.go` (calls `mtlstpm.RunDemo()`) / `cmd/mtlstpm_other.go` (returns a "Windows only" error) to keep build constraints out of `main.go`.
+`cmd/main.go` is a thin dispatcher: it reads `os.Args[1]` (`tlsmem`, `mtlsmem`, `tlsfiles`, `mtlsfiles`, `mtlsenterprise`, `mtlsenterprisetpm`, or `mtlstpm`) and calls the appropriate `RunDemo()`. No arg → usage error; unknown arg → error. No default. `mtlsenterprisetpm` is dispatched via `cmd/mtlsenterprisetpm_windows.go` (calls `mtlsenterprisetpm.RunDemo()`) / `cmd/mtlsenterprisetpm_other.go` (returns a "Windows only" error). `mtlstpm` is dispatched via `cmd/mtlstpm_windows.go` (calls `mtlstpm.RunDemo()`) / `cmd/mtlstpm_other.go` (returns a "Windows only" error) to keep build constraints out of `main.go`.
 
 ## Key Conventions
 
