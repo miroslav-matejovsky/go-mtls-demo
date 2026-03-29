@@ -5,7 +5,7 @@ inside the machine's Trusted Platform Module (TPM) via the Windows Certificate S
 If no TPM is present, it falls back to the Microsoft Software Key Storage Provider (NCrypt).
 
 For broader Go TLS and mTLS implementation guidance using the whole repo as examples,
-see [`../../docs/index.md`](../../docs/index.md).
+see [`../../../docs/index.md`](../../../docs/index.md).
 
 ## What makes this different from mtlsfiles?
 

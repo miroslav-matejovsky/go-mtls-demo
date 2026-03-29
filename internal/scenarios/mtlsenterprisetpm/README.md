@@ -37,7 +37,7 @@ go run ./cmd/ mtlsenterprisetpm
 ## File layout
 
 ```
-internal/mtlsenterprisetpm/
+internal/scenarios/mtlsenterprisetpm/
 ├── config.go    — TOML config types and loaders
 ├── operator.go  — Enterprise PKI operator (root + intermediate CA)
 ├── server.go    — File-backed mTLS server

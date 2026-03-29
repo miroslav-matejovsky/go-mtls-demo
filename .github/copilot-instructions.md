@@ -7,14 +7,14 @@
 go test ./...
 
 # Run tests for one package
-go test ./internal/tlsmem/...
-go test ./internal/mtlsmem/...
-go test ./internal/tlsfiles/...
-go test ./internal/mtlsfiles/...
-go test ./internal/mtlsenterprise/...
+go test ./internal/scenarios/tlsmem/...
+go test ./internal/scenarios/mtlsmem/...
+go test ./internal/scenarios/tlsfiles/...
+go test ./internal/scenarios/mtlsfiles/...
+go test ./internal/scenarios/mtlsenterprise/...
 
 # Run a single test by name
-go test ./internal/mtlsfiles/... -run TestDemo
+go test ./internal/scenarios/mtlsfiles/... -run TestDemo
 
 # Run a demo
 go run ./cmd/ tlsmem
@@ -39,19 +39,20 @@ No linter is configured. No CI/CD pipeline exists.
 
 ## Architecture
 
-`internal/cert` is the shared certificate package. There are seven demo packages. The first four (`tlsmem`, `mtlsmem`, `tlsfiles`, `mtlsfiles`) share the same four-file layout (`server.go`, `client.go`, `demo.go`, `config.go`). The enterprise packages (`mtlsenterprise`, `mtlsenterprisetpm`) and `mtlstpm` extend this with additional files (`operator.go`, `step*.go`):
+`internal/cert` is the shared certificate package. The seven demo packages live under `internal/scenarios/`. The first four (`tlsmem`, `mtlsmem`, `tlsfiles`, `mtlsfiles`) share the same four-file layout (`server.go`, `client.go`, `demo.go`, `config.go`). The enterprise packages (`mtlsenterprise`, `mtlsenterprisetpm`) and `mtlstpm` extend this with additional files (`operator.go`, `step*.go`):
 
 ```
 internal/
   cert/        – shared: CA + leaf cert generation, PrintCertificateInfo, TLSVersionName, WriteCert, WriteKey
   pwsh/        – PowerShell helpers used by mtlstpm: CheckTPM(), ShowCertsInStore()
-  tlsmem/      – one-way TLS,   certs in memory
-  mtlsmem/     – mutual TLS,    certs in memory
-  tlsfiles/    – one-way TLS,   certs written to certs/tlsfiles/ and loaded from disk
-  mtlsfiles/   – mutual TLS,    certs written to certs/mtlsfiles/ and loaded from disk
-  mtlsenterprise/ – mutual TLS, intermediate CA, role-specific EKU, DNS SANs, chain bundles
-  mtlsenterprisetpm/ – mutual TLS, enterprise PKI + client key in Windows cert store + TPM (Windows only)
-  mtlstpm/     – mutual TLS,    server: files in certs/mtlstpm/; client: Windows cert store + TPM (Windows only)
+  scenarios/
+    tlsmem/      – one-way TLS,   certs in memory
+    mtlsmem/     – mutual TLS,    certs in memory
+    tlsfiles/    – one-way TLS,   certs written to certs/tlsfiles/ and loaded from disk
+    mtlsfiles/   – mutual TLS,    certs written to certs/mtlsfiles/ and loaded from disk
+    mtlsenterprise/ – mutual TLS, intermediate CA, role-specific EKU, DNS SANs, chain bundles
+    mtlsenterprisetpm/ – mutual TLS, enterprise PKI + client key in Windows cert store + TPM (Windows only)
+    mtlstpm/     – mutual TLS,    server: files in certs/mtlstpm/; client: Windows cert store + TPM (Windows only)
 ```
 
 Each demo package has the same four-file structure:

@@ -14,13 +14,13 @@ mTLS (mutual)   Client ──── verify server cert ────► Server
 
 | Package                                                   | Mode        | Certs                                                                  |
 | --------------------------------------------------------- | ----------- | ---------------------------------------------------------------------- |
-| [tlsmem](internal/tlsmem/README.md)                       | One-way TLS | In memory                                                              |
-| [mtlsmem](internal/mtlsmem/README.md)                     | Mutual TLS  | In memory                                                              |
-| [tlsfiles](internal/tlsfiles/README.md)                   | One-way TLS | Written to `certs/tlsfiles/`                                           |
-| [mtlsfiles](internal/mtlsfiles/README.md)                 | Mutual TLS  | Written to `certs/mtlsfiles/`                                          |
-| [mtlsenterprise](internal/mtlsenterprise/README.md)       | Mutual TLS  | Intermediate CA, role-specific EKU, DNS SANs, chain bundles            |
-| [mtlstpm](internal/mtlstpm/README.md)                     | Mutual TLS  | Server: files · Client: Windows cert store + TPM (Windows only)        |
-| [mtlsenterprisetpm](internal/mtlsenterprisetpm/README.md) | Mutual TLS  | Enterprise PKI + client key in Windows cert store + TPM (Windows only) |
+| [tlsmem](internal/scenarios/tlsmem/README.md)                       | One-way TLS | In memory                                                              |
+| [mtlsmem](internal/scenarios/mtlsmem/README.md)                     | Mutual TLS  | In memory                                                              |
+| [tlsfiles](internal/scenarios/tlsfiles/README.md)                   | One-way TLS | Written to `certs/tlsfiles/`                                           |
+| [mtlsfiles](internal/scenarios/mtlsfiles/README.md)                 | Mutual TLS  | Written to `certs/mtlsfiles/`                                          |
+| [mtlsenterprise](internal/scenarios/mtlsenterprise/README.md)       | Mutual TLS  | Intermediate CA, role-specific EKU, DNS SANs, chain bundles            |
+| [mtlstpm](internal/scenarios/mtlstpm/README.md)                     | Mutual TLS  | Server: files · Client: Windows cert store + TPM (Windows only)        |
+| [mtlsenterprisetpm](internal/scenarios/mtlsenterprisetpm/README.md) | Mutual TLS  | Enterprise PKI + client key in Windows cert store + TPM (Windows only) |
 
 ## Guidance
 

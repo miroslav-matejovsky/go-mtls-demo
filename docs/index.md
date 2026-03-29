@@ -7,7 +7,7 @@ This repository is meant to be both:
 
 The examples are intentionally progressive. They start with the minimum needed to understand TLS, then add mutual authentication, then make certificate handling more realistic, and finally show stronger key-management patterns.
 
-Use this docs set as the main narrative guide, and use the packages under `internal\` as the concrete examples.
+Use this docs set as the main narrative guide, and use the demo packages under `internal\scenarios\` as the concrete examples.
 
 ## How to read these docs
 
