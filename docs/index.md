@@ -33,16 +33,17 @@ If you already understand the protocol and want implementation patterns, start w
 
 ## Agent guides for production implementations
 
-The [agents/](agents/) folder contains standalone AGENTS.md files designed to be copied into any production Go repository. They guide AI coding agents on implementing enterprise-grade mTLS — each file is self-contained and covers one concern:
+The [example/](../example/) folder contains standalone AGENTS.md files designed to be copied into any production Go repository. They guide AI coding agents on implementing enterprise-grade mTLS — each file is self-contained and covers one concern:
 
 | Guide | Focus |
 | ----- | ----- |
-| [AGENTS.mtls.md](agents/AGENTS.mtls.md) | Core mTLS concepts, PKI topology, security checklist |
-| [AGENTS.server.md](agents/AGENTS.server.md) | Server-side mTLS implementation |
-| [AGENTS.client.md](agents/AGENTS.client.md) | Client-side mTLS implementation |
-| [AGENTS.cli.md](agents/AGENTS.cli.md) | CLI operator tool for PKI management |
-| [AGENTS.windows.md](agents/AGENTS.windows.md) | Windows Server deployment |
-| [AGENTS.container.md](agents/AGENTS.container.md) | Container deployment (Azure) |
+| [AGENTS.md](../example/mtls/AGENTS.md) | Core mTLS concepts, PKI topology, security checklist |
+| [certs/AGENTS.md](../example/mtls/certs/AGENTS.md) | Certificate domain (creation, signing, store, lifecycle) |
+| [operator/AGENTS.md](../example/mtls/operator/AGENTS.md) | PKI operator workflows and CLI tool design |
+| [server/AGENTS.md](../example/mtls/server/AGENTS.md) | Server-side mTLS implementation |
+| [client/AGENTS.md](../example/mtls/client/AGENTS.md) | Client-side mTLS implementation |
+| [container/AGENTS.md](../example/container/AGENTS.md) | Container deployment (Azure/Kubernetes) |
+| [winservice/AGENTS.windows.md](../example/winservice/AGENTS.windows.md) | Windows Server deployment |
 
 ## Quick map of the scenarios
 

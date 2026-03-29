@@ -1,6 +1,6 @@
 # Certificate Domain
 
-> **Parent:** [AGENTS.mtls.md](AGENTS.mtls.md) — mTLS concepts and architecture
+> **Parent:** [AGENTS.md](../AGENTS.md) — mTLS concepts and architecture
 > **Layer:** Domain
 > **Go package:** `internal/cert` · `github.com/google/certtostore`
 
@@ -8,8 +8,8 @@
 > This document covers the certificate domain: types, fields, chain bundles,
 > generation, signing, certificate store operations, hardware-backed keys, and
 > lifecycle. It is the single source of truth for certificate business logic.
-> For mTLS concepts see [AGENTS.mtls.md](AGENTS.mtls.md); for PKI workflows see
-> [AGENTS.operator.md](AGENTS.operator.md).
+> For mTLS concepts see [AGENTS.md](../AGENTS.md); for PKI workflows see
+> [operator/AGENTS.md](../operator/AGENTS.md).
 
 ---
 
@@ -684,7 +684,7 @@ store.RemoveCertByCommonName("myservice.internal")
 ```
 
 > For PowerShell-based cleanup commands (`certutil -delkey`, `Remove-Item Cert:\...`),
-> see [AGENTS.windows.md](AGENTS.windows.md).
+> see [AGENTS.windows.md](../../winservice/AGENTS.windows.md).
 
 ---
 

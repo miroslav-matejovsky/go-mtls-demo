@@ -1,12 +1,12 @@
 # Deploying mTLS Go Services in Containers (Azure)
 
-> **Parent:** [AGENTS.mtls.md](AGENTS.mtls.md) — mTLS concepts and architecture
+> **Parent:** [AGENTS.md](../mtls/AGENTS.md) — mTLS concepts and architecture
 > **Layer:** Infrastructure
-> **Related:** [AGENTS.certs.md](AGENTS.certs.md) (certificate format) · [AGENTS.operator.md](AGENTS.operator.md) (PKI workflows) · [AGENTS.server.md](AGENTS.server.md) · [AGENTS.client.md](AGENTS.client.md)
+> **Related:** [certs/AGENTS.md](../mtls/certs/AGENTS.md) (certificate format) · [operator/AGENTS.md](../mtls/operator/AGENTS.md) (PKI workflows) · [server/AGENTS.md](../mtls/server/AGENTS.md) · [client/AGENTS.md](../mtls/client/AGENTS.md)
 
 > **Audience:** AI coding agent deploying a Go mTLS application in containers on Azure (AKS, ACI).
 > This guide covers infrastructure-specific deployment patterns. For certificate
-> domain logic see [AGENTS.certs.md](AGENTS.certs.md).
+> domain logic see [certs/AGENTS.md](../mtls/certs/AGENTS.md).
 
 ---
 

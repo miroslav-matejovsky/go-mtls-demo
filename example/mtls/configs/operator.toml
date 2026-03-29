@@ -1,0 +1,9 @@
+[root_ca]
+cn        = "Example Root CA"
+cert_file = "certs/example-mtls/root-ca/cert.crt"
+validity  = "8760h"
+
+[intermediate_ca]
+cn        = "Example Intermediate CA"
+cert_file = "certs/example-mtls/intermediate-ca/cert.crt"
+validity  = "720h"

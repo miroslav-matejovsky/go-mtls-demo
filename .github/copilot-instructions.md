@@ -103,4 +103,4 @@ Each demo package has the same four-file structure:
 
 **`internal/pwsh` package.** Wraps `exec.Command("powershell", ...)`. Exports `CheckTPM()` and `ShowCertsInStore(cn)`. No build constraint needed — it just invokes the `powershell` binary.
 
-**Production agent guides.** `docs/agents/` contains standalone AGENTS.md files (AGENTS.mtls.md, AGENTS.server.md, AGENTS.client.md, AGENTS.cli.md, AGENTS.windows.md, AGENTS.container.md) designed to be copied into production repositories. They are self-contained and do not reference this demo repo.
+**Production agent guides and standalone examples.** `example/` contains standalone AGENTS.md files and runnable implementations. `example/mtls/` has enterprise mTLS (certs, operator, server, client packages). `example/winservice/` has Windows service + TPM. `example/container/` has containerized mTLS server + Dockerfile + K8s manifests. Each AGENTS.md is self-contained and can be copied into production repositories.

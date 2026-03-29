@@ -1,13 +1,13 @@
 # Windows Server mTLS Deployment Guide
 
-> **Parent:** [AGENTS.mtls.md](AGENTS.mtls.md) — mTLS concepts and architecture
+> **Parent:** [AGENTS.md](../mtls/AGENTS.md) — mTLS concepts and architecture
 > **Layer:** Infrastructure
-> **Related:** [AGENTS.certs.md](AGENTS.certs.md) (certificate domain + certtostore API) · [AGENTS.operator.md](AGENTS.operator.md) (PKI workflows)
+> **Related:** [certs/AGENTS.md](../mtls/certs/AGENTS.md) (certificate domain + certtostore API) · [operator/AGENTS.md](../mtls/operator/AGENTS.md) (PKI workflows)
 
 > **Audience:** AI coding agent deploying a Go mutual-TLS (mTLS) application on Windows Server.
 > This guide covers Windows platform infrastructure — certificate store management,
 > NCrypt/CNG providers, service configuration, and troubleshooting. For the Go
-> `certtostore` API and certificate domain logic see [AGENTS.certs.md](AGENTS.certs.md).
+> `certtostore` API and certificate domain logic see [certs/AGENTS.md](../mtls/certs/AGENTS.md).
 
 ---
 
@@ -150,7 +150,7 @@ advantage over file-based keys.
 
 ### Go integration pattern
 
-> **Full `certtostore` API reference:** See [AGENTS.certs.md — Certificate store operations](AGENTS.certs.md#certificate-store-operations-certtostore)
+> **Full `certtostore` API reference:** See [certs/AGENTS.md — Certificate store operations](../mtls/certs/AGENTS.md#certificate-store-operations-certtostore)
 > for `OpenWinCertStoreCurrentUser`, `Generate`, `StoreWithDisposition`,
 > `CertByCommonName`, `CertKey`, and the complete enterprise PKI enrollment workflow in Go.
 
@@ -159,18 +159,18 @@ advantage over file-based keys.
 If the server or client must present an intermediate CA during the TLS handshake, include
 it in the `Certificate` slice. The order is leaf first, then intermediates. The root CA
 is **not** included — the peer obtains it from its own trust pool. See
-[AGENTS.certs.md — Chain Bundles](AGENTS.certs.md#chain-bundles) for the full format specification.
+[certs/AGENTS.md — Chain Bundles](../mtls/certs/AGENTS.md#chain-bundles) for the full format specification.
 
 ### Key generation via CNG
 
 Generate TPM-backed ECDSA keys using `certtostore.Generate(GenerateOpts{EC, 256})`.
 The private key exists only as a TPM key handle. See
-[AGENTS.certs.md — Key generation](AGENTS.certs.md#key-generation) for the Go API.
+[certs/AGENTS.md — Key generation](../mtls/certs/AGENTS.md#key-generation) for the Go API.
 
 ### Generating TPM-backed Keys for Enterprise PKI
 
 > **Full enrollment workflow:** See
-> [AGENTS.certs.md — Enterprise PKI enrollment workflow](AGENTS.certs.md#enterprise-pki-enrollment-workflow)
+> [certs/AGENTS.md — Enterprise PKI enrollment workflow](../mtls/certs/AGENTS.md#enterprise-pki-enrollment-workflow)
 > for the complete Go code: key generation → public key export → intermediate CA signing →
 > `StoreWithDisposition` import → `tls.Certificate` construction.
 
@@ -222,7 +222,7 @@ Get-ChildItem "Cert:\LocalMachine\My" |
 
 **Programmatic cleanup in Go:**
 
-> See [AGENTS.certs.md — Cleanup](AGENTS.certs.md#cleanup) for Go-based
+> See [certs/AGENTS.md — Cleanup](../mtls/certs/AGENTS.md#cleanup) for Go-based
 > `certtostore` cleanup patterns (`DeleteKeyContainer`, `RemoveCertByCommonName`).
 
 > **Always clean up NCrypt containers and cert store entries when decommissioning

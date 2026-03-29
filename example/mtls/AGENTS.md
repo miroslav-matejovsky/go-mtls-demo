@@ -2,18 +2,18 @@
 
 > **Layer:** Root
 > **Children:**
-> - [AGENTS.certs.md](AGENTS.certs.md) — Certificate domain (creation, signing, store, lifecycle)
-> - [AGENTS.operator.md](AGENTS.operator.md) — PKI operator workflows
-> - [AGENTS.server.md](AGENTS.server.md) — Server TLS configuration
-> - [AGENTS.client.md](AGENTS.client.md) — Client TLS configuration
-> - [AGENTS.container.md](AGENTS.container.md) — Azure/Kubernetes deployment
-> - [AGENTS.windows.md](AGENTS.windows.md) — Windows platform operations
+> - [certs/AGENTS.md](certs/AGENTS.md) — Certificate domain (creation, signing, store, lifecycle)
+> - [operator/AGENTS.md](operator/AGENTS.md) — PKI operator workflows
+> - [server/AGENTS.md](server/AGENTS.md) — Server TLS configuration
+> - [client/AGENTS.md](client/AGENTS.md) — Client TLS configuration
+> - [container/AGENTS.md](../container/AGENTS.md) — Azure/Kubernetes deployment
+> - [winservice/AGENTS.windows.md](../winservice/AGENTS.windows.md) — Windows platform operations
 
 > **Audience:** AI coding agents working in a production Go codebase.
 > This is the root context for the mTLS guide hierarchy. It covers mutual TLS
 > concepts, PKI topology, trust model, Go configuration patterns, testing
 > strategy, and common mistakes. Certificate domain logic (types, chain bundles,
-> generation, store operations, lifecycle) is in [AGENTS.certs.md](AGENTS.certs.md).
+> generation, store operations, lifecycle) is in **[certs/AGENTS.md](certs/AGENTS.md)**.
 
 ---
 
@@ -111,7 +111,7 @@ Root CA (offline, long-lived, 1–10 years)
 > keys (`crypto.Signer`, issuance workflow), certificate generation with Go stdlib,
 > `SignerFunc`/`ProfiledSignerFunc` patterns, helper functions, certificate store
 > operations (`certtostore`), and certificate lifecycle (issuance, rotation,
-> revocation) are covered in **[AGENTS.certs.md](AGENTS.certs.md)**.
+> revocation) are covered in **[certs/AGENTS.md](certs/AGENTS.md)**.
 
 ---
 

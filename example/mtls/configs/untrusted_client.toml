@@ -1,0 +1,7 @@
+[untrusted_client]
+root_ca_cn         = "Example Untrusted Root CA"
+intermediate_ca_cn = "Example Untrusted Intermediate CA"
+cn                 = "Example Untrusted Client"
+chain_file         = "certs/example-mtls/untrusted/chain.crt"
+key_file           = "certs/example-mtls/untrusted/client.key"
+root_cert_file     = "certs/example-mtls/untrusted/root-ca.crt"

@@ -1,6 +1,6 @@
 # PKI Operator Workflows
 
-> **Parent:** [AGENTS.mtls.md](AGENTS.mtls.md) — mTLS concepts and architecture
+> **Parent:** [AGENTS.md](../AGENTS.md) — mTLS concepts and architecture
 > **Layer:** Application
 > **Go package:** `operator.go` in each demo package
 
@@ -8,7 +8,7 @@
 > PKI (Public Key Infrastructure) for mutual TLS. This tool is used by operators
 > to create certificate authorities, issue certificates, and distribute trust
 > material to servers and clients. For certificate creation APIs and domain logic
-> see [AGENTS.certs.md](AGENTS.certs.md).
+> see [certs/AGENTS.md](../certs/AGENTS.md).
 
 ---
 
@@ -26,7 +26,7 @@ The CLI tool you are building automates the role of a PKI operator. The operator
 > **Certificate creation code:** `CreateRootCA`, `CreateIntermediateCA`, `CreateLeafCert`,
 > `SignerFunc`, `ProfiledSignerFunc`, and helper functions (`randomSerial`, `computeSKID`,
 > `WriteCert`, `WriteKey`, `WriteChainBundle`) are documented in
-> [AGENTS.certs.md](AGENTS.certs.md).
+> [certs/AGENTS.md](../certs/AGENTS.md).
 
 ---
 
@@ -57,7 +57,7 @@ Design principles:
 Enterprise PKI notes:
 - **Intermediate CA cert appears in two places:** its own file (`intermediate-ca/cert.crt`) AND inside every chain bundle (`server/chain.crt`, `client/chain.crt`). The standalone copy is used during cert issuance; the copies inside chain bundles are used during TLS handshakes.
 - **Root CA cert is NOT in chain bundles.** The root cert only appears in trust pool configuration files (`server/root-ca.crt`, `client/root-ca.crt`). TLS peers use the trust pool to verify the chain, not the chain bundle.
-- **Cert store imports require the direct issuer.** When storing a leaf cert in an OS certificate store (e.g., Windows cert store via `StoreWithDisposition` or equivalent), you must provide the immediate issuer certificate — the intermediate CA cert, not the root. The store uses this to build the local chain association. Passing the root instead of the intermediate will cause chain-building failures at TLS time. See [AGENTS.certs.md — Certificate store operations](AGENTS.certs.md#certificate-store-operations-certtostore) for the Go API.
+- **Cert store imports require the direct issuer.** When storing a leaf cert in an OS certificate store (e.g., Windows cert store via `StoreWithDisposition` or equivalent), you must provide the immediate issuer certificate — the intermediate CA cert, not the root. The store uses this to build the local chain association. Passing the root instead of the intermediate will cause chain-building failures at TLS time. See [certs/AGENTS.md — Certificate store operations](../certs/AGENTS.md#certificate-store-operations-certtostore) for the Go API.
 
 ---
 

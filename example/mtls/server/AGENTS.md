@@ -1,10 +1,10 @@
 # Production mTLS Server in Go
 
-> **Parent:** [AGENTS.mtls.md](AGENTS.mtls.md) — mTLS concepts and architecture
+> **Parent:** [AGENTS.md](../AGENTS.md) — mTLS concepts and architecture
 > **Layer:** Adapter
 > **Go package:** `server.go` in each demo package
 
-You are implementing a production Go HTTP server that requires mutual TLS (mTLS). This guide covers every aspect of server-side mTLS configuration: TLS setup, certificate loading, trust pools, timeouts, graceful shutdown, health checks, logging, certificate rotation, and common mistakes. For certificate creation and chain bundle format see [AGENTS.certs.md](AGENTS.certs.md).
+You are implementing a production Go HTTP server that requires mutual TLS (mTLS). This guide covers every aspect of server-side mTLS configuration: TLS setup, certificate loading, trust pools, timeouts, graceful shutdown, health checks, logging, certificate rotation, and common mistakes. For certificate creation and chain bundle format see [certs/AGENTS.md](../certs/AGENTS.md).
 
 All code targets Go's standard library (`crypto/tls`, `crypto/x509`, `net/http`). No third-party TLS libraries are needed.
 
@@ -337,7 +337,7 @@ tlsCfg := &tls.Config{
 
 On Windows servers with a Trusted Platform Module (TPM), the server's private key can be stored in hardware via the platform Key Storage Provider (KSP). The key never leaves the TPM — TLS handshakes are signed inside the module. The certificate and any chain intermediates are retrieved from the Windows certificate store.
 
-> **Full `certtostore` API reference:** See [AGENTS.certs.md — Certificate store operations](AGENTS.certs.md#certificate-store-operations-certtostore)
+> **Full `certtostore` API reference:** See [certs/AGENTS.md — Certificate store operations](../certs/AGENTS.md#certificate-store-operations-certtostore)
 > for `OpenWinCertStoreCurrentUser`, `Generate`, `StoreWithDisposition`,
 > `CertByCommonName`, `CertKey`, and cleanup patterns.
 
@@ -358,7 +358,7 @@ tlsCfg := &tls.Config{
 }
 ```
 
-**NCrypt container cleanup.** When decommissioning a server, remove the orphaned NCrypt container and certificate from the Windows store to avoid key accumulation. See [AGENTS.windows.md](AGENTS.windows.md) for PowerShell cleanup commands.
+**NCrypt container cleanup.** When decommissioning a server, remove the orphaned NCrypt container and certificate from the Windows store to avoid key accumulation. See [AGENTS.windows.md](../../winservice/AGENTS.windows.md) for PowerShell cleanup commands.
 
 ---
 

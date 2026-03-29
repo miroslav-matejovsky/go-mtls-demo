@@ -26,18 +26,27 @@ mTLS (mutual)   Client ──── verify server cert ────► Server
 
 Use [docs/index.md](docs/index.md) as the main guide for how to read this repository as an implementation reference, from basic TLS through production-oriented mTLS patterns.
 
-## Agent Guides for Production Implementations
+## Standalone Examples
 
-The [docs/agents/](docs/agents/) folder contains standalone AGENTS.md files that can be copied into any production Go repository to guide AI coding agents on implementing enterprise-grade mTLS:
+The [example/](example/) folder contains standalone, runnable implementations of enterprise mTLS patterns — each with an AGENTS.md guide for AI coding agents:
+
+| Example | Focus |
+| ------- | ----- |
+| [example/mtls/](example/mtls/) | Enterprise mTLS with intermediate CA, role-specific EKU, chain bundles |
+| [example/winservice/](example/winservice/) | Windows Service + TPM-backed client keys |
+| [example/container/](example/container/) | Container deployment with health checks (Dockerfile + K8s) |
+
+### AGENTS.md Guides
 
 | Guide | Focus |
 | ----- | ----- |
-| [AGENTS.mtls.md](docs/agents/AGENTS.mtls.md) | Core mTLS concepts, PKI topology, security checklist |
-| [AGENTS.server.md](docs/agents/AGENTS.server.md) | Server-side mTLS implementation |
-| [AGENTS.client.md](docs/agents/AGENTS.client.md) | Client-side mTLS implementation |
-| [AGENTS.cli.md](docs/agents/AGENTS.cli.md) | CLI operator tool for PKI management |
-| [AGENTS.windows.md](docs/agents/AGENTS.windows.md) | Windows Server deployment |
-| [AGENTS.container.md](docs/agents/AGENTS.container.md) | Container deployment (Azure) |
+| [AGENTS.md](example/mtls/AGENTS.md) | Core mTLS concepts, PKI topology, security checklist |
+| [certs/AGENTS.md](example/mtls/certs/AGENTS.md) | Certificate domain (creation, signing, store, lifecycle) |
+| [operator/AGENTS.md](example/mtls/operator/AGENTS.md) | PKI operator workflows and CLI tool design |
+| [server/AGENTS.md](example/mtls/server/AGENTS.md) | Server-side mTLS implementation |
+| [client/AGENTS.md](example/mtls/client/AGENTS.md) | Client-side mTLS implementation |
+| [container/AGENTS.md](example/container/AGENTS.md) | Container deployment (Azure/Kubernetes) |
+| [winservice/AGENTS.windows.md](example/winservice/AGENTS.windows.md) | Windows Server deployment |
 
 ## Running
 

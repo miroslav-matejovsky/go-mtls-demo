@@ -1,0 +1,7 @@
+[server]
+address        = "127.0.0.1:0"
+cn             = "Example mTLS Server"
+chain_file     = "certs/example-mtls/server/chain.crt"
+key_file       = "certs/example-mtls/server/server.key"
+root_cert_file = "certs/example-mtls/server/root-ca.crt"
+dns_names      = ["localhost"]

@@ -1,0 +1,5 @@
+[client]
+cn             = "Example mTLS Client"
+chain_file     = "certs/example-mtls/client/chain.crt"
+key_file       = "certs/example-mtls/client/client.key"
+root_cert_file = "certs/example-mtls/client/root-ca.crt"
