@@ -4,7 +4,7 @@ import (
 	"crypto/x509"
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 // step2GenerateServerCertificate issues the server certificate and writes the server-owned files to disk.
@@ -23,14 +23,14 @@ func step2GenerateServerCertificate(state *demoState, serverCfg ServerConfig) er
 	if err != nil {
 		return fmt.Errorf("error marshaling server key: %w", err)
 	}
-	if err := cert.WriteCert(serverCfg.CertFile, serverCert); err != nil {
+	if err := kpi.WriteCert(serverCfg.CertFile, serverCert); err != nil {
 		return fmt.Errorf("error writing server certificate: %w", err)
 	}
-	if err := cert.WriteKey(serverCfg.KeyFile, serverKeyBytes); err != nil {
+	if err := kpi.WriteKey(serverCfg.KeyFile, serverKeyBytes); err != nil {
 		return fmt.Errorf("error writing server key: %w", err)
 	}
 
-	cert.PrintCertificateInfo(serverCert)
+	kpi.PrintCertificateInfo(serverCert)
 	fmt.Printf("  [SERVER] Certificate → %s\n", serverCfg.CertFile)
 	fmt.Printf("  [SERVER] Private key  → %s\n", serverCfg.KeyFile)
 	fmt.Println()

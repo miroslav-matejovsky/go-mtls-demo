@@ -3,7 +3,7 @@ package tlsfiles
 import (
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 // step1GenerateCA creates the operator CA, prints its details, and distributes the trust anchor to the client.
@@ -24,7 +24,7 @@ func step1GenerateCA(state *demoState, opCfg OperatorConfig, clientCfg ClientCon
 
 	state.operator = operator
 
-	cert.PrintCertificateInfo(operator.CACert())
+	kpi.PrintCertificateInfo(operator.CACert())
 	fmt.Printf("  [OPERATOR] CA Certificate → %s\n", opCfg.CertFile)
 	fmt.Printf("  [OPERATOR] Distributed to client → %s\n", clientCfg.CACertFile)
 	fmt.Println()

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 // step4MakeRequest loads the distributed CA certificate from disk and performs the TLS client request.
@@ -34,7 +34,7 @@ func step4MakeRequest(state *demoState, clientCfg ClientConfig) error {
 	defer resp.Body.Close()
 
 	fmt.Printf("[CLIENT] Handshake complete  — version: %s, cipher suite: %s\n",
-		cert.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
+		kpi.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
 	fmt.Println("[CLIENT] Response:", resp.Status)
 	if err := state.unexpectedServerError(); err != nil {
 		return err
