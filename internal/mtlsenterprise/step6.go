@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 // step6TrustedRequest performs the successful mTLS exchange using the trusted client chain bundle.
@@ -33,7 +33,7 @@ func step6TrustedRequest(state *demoState, clientCfg ClientConfig) error {
 	fmt.Printf("[CLIENT] Server certificate verified: %s (issued by %s)\n",
 		resp.TLS.PeerCertificates[0].Subject.CommonName, resp.TLS.PeerCertificates[0].Issuer.CommonName)
 	fmt.Printf("[CLIENT] Handshake complete  — version: %s, cipher suite: %s\n",
-		cert.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
+		kpi.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
 	fmt.Println("[CLIENT] Response:", resp.Status)
 	fmt.Println()
 	if err := state.unexpectedServerError(); err != nil {
