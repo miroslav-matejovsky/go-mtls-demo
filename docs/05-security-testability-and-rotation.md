@@ -85,8 +85,8 @@ Use this checklist when preparing an mTLS implementation for production. Items m
 ### Certificate generation
 
 - ✅ Use ECDSA P-256 or stronger for all key pairs (`internal/pki/simple.go` and `internal/pki/enterprise.go`)
-- ✅ Generate cryptographically random serial numbers (`randomSerial()` in `cert.go`)
-- ✅ Set Subject Key Identifier on all certificates (`computeSKID()` in `cert.go`)
+- ✅ Generate cryptographically random serial numbers (`randomSerial()` in `pki.go`)
+- ✅ Set Subject Key Identifier on all certificates (`computeSKID()` in `pki.go`)
 - ✅ Set Authority Key Identifier on leaf certificates pointing to the issuing CA
 - ✅ Include DNS SANs for service FQDNs (`mtlsenterprise` and `mtlsenterprisetpm` scenarios)
 - ✅ Use separate EKU per role: `ServerAuth` only on server certs, `ClientAuth` only on client certs (`mtlsenterprise` and `mtlsenterprisetpm`)
@@ -94,7 +94,7 @@ Use this checklist when preparing an mTLS implementation for production. Items m
 
 ### Key protection
 
-- ✅ Restrict private key file permissions to owner-only: 0600 (`WriteKey()` in `cert.go`)
+- ✅ Restrict private key file permissions to owner-only: 0600 (`WriteKey()` in `pki.go`)
 - ✅ Support TPM-backed non-exportable client keys (`mtlstpm` scenario)
 - ✅ Use `crypto.Signer` interface for key abstraction (`internal/client.NewMTLSWithSigner`)
 - ⬚ Restrict cert store private key ACLs to the service account identity

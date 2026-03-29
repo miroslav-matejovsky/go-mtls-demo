@@ -27,7 +27,7 @@ Why this matters:
 - compromise blast radius is smaller
 - policy and trust management become cleaner
 
-The `mtlsenterprise` and `mtlsenterprisetpm` scenarios implement this model. They use `cert.CreateRootCA` → `SignIntermediateFunc` → `ProfiledSignerFunc` to build the full hierarchy, with role-specific EKU (ServerAuth / ClientAuth) and DNS SANs on server certificates. Chain bundles (leaf + intermediate) are written to disk for TLS presentation.
+The `mtlsenterprise` and `mtlsenterprisetpm` scenarios implement this model. They use `pki.CreateRootCA` → `SignIntermediateFunc` → `ProfiledSignerFunc` to build the full hierarchy, with role-specific EKU (ServerAuth / ClientAuth) and DNS SANs on server certificates. Chain bundles (leaf + intermediate) are written to disk for TLS presentation.
 
 The earlier scenarios (`tlsmem`, `mtlsmem`, `tlsfiles`, `mtlsfiles`, `mtlstpm`) use a single CA for simplicity. That is a useful teaching simplification, not the PKI topology to copy unchanged into production — use `mtlsenterprise` or `mtlsenterprisetpm` as the production PKI reference.
 

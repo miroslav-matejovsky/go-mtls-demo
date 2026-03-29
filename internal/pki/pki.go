@@ -1,3 +1,6 @@
+// Package pki provides low-level certificate generation and file helpers shared
+// across all demo scenarios. It handles CA creation, leaf certificate issuance
+// via closure-based signers, PEM encoding, and certificate inspection utilities.
 package pki
 
 import (
@@ -36,6 +39,8 @@ func computeSKID(pub crypto.PublicKey) ([]byte, error) {
 	return hash[:], nil
 }
 
+// PrintCertificateInfo prints a formatted summary of a certificate to stdout,
+// including subject, issuer, serial, validity, key usage, and key identifiers.
 func PrintCertificateInfo(c *x509.Certificate) {
 	fmt.Printf("  Subject       : %s\n", c.Subject.CommonName)
 	fmt.Printf("  Issuer        : %s\n", c.Issuer.CommonName)
@@ -81,6 +86,8 @@ func WriteKey(path string, keyDER []byte) error {
 	return pem.Encode(f, &pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
 }
 
+// TLSVersionName returns a human-readable name for a TLS version constant
+// (e.g. tls.VersionTLS13 → "TLS 1.3").
 func TLSVersionName(version uint16) string {
 	switch version {
 	case tls.VersionTLS10:

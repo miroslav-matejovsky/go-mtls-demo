@@ -125,19 +125,19 @@ For many real services, this is the best baseline to adapt first.
 Operator pattern — building the PKI hierarchy:
 
 ```go
-rootCert, signIntermediate, err := cert.CreateRootCA(cn, validity)
+rootCert, signIntermediate, err := pki.CreateRootCA(cn, validity)
 intCert, signLeaf, err := signIntermediate(intCN, intValidity)
 ```
 
 Issuing profiled leaf certificates:
 
 ```go
-profile := cert.LeafProfile{
+profile := pki.LeafProfile{
     ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
     DNSNames:    dnsNames,
     IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1)},
 }
-serverCert, serverKey, err := cert.CreateLeafCertWithProfile(signLeaf, cn, profile)
+serverCert, serverKey, err := pki.GenerateLeafCertificateAndKey(signLeaf, cn, profile)
 ```
 
 Chain bundle loading — both server and client load their chain bundle (leaf + intermediate) the same way:
