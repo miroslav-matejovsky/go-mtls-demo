@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 // step1GenerateCA prints the shared trust-root introduction and creates the CA used by both peers.
@@ -14,7 +14,7 @@ func step1GenerateCA(state *demoState) error {
 	fmt.Println("Both parties trust this CA and will accept any certificate it has signed.")
 	fmt.Println()
 
-	caCert, signLeaf, err := cert.CreateCA("go mTLS Demo CA", 24*time.Hour)
+	caCert, signLeaf, err := kpi.CreateCA("go mTLS Demo CA", 24*time.Hour)
 	if err != nil {
 		return fmt.Errorf("error creating CA: %w", err)
 	}
@@ -22,6 +22,6 @@ func step1GenerateCA(state *demoState) error {
 	state.caCert = caCert
 	state.signLeaf = signLeaf
 
-	cert.PrintCertificateInfo(caCert)
+	kpi.PrintCertificateInfo(caCert)
 	return nil
 }

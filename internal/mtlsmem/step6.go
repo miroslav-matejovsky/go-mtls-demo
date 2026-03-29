@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 // step6MakeUntrustedRequest demonstrates that the server rejects a client certificate signed by another CA.
@@ -16,11 +16,11 @@ func step6MakeUntrustedRequest(state *demoState) error {
 	fmt.Println("The server must reject the connection during the TLS handshake.")
 	fmt.Println()
 
-	_, untrustedSignLeaf, err := cert.CreateCA("go mTLS Untrusted CA", 24*time.Hour)
+	_, untrustedSignLeaf, err := kpi.CreateCA("go mTLS Untrusted CA", 24*time.Hour)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted CA: %w", err)
 	}
-	untrustedClientCert, untrustedClientKey, err := cert.CreateLeafCert(untrustedSignLeaf, "go mTLS Untrusted Client")
+	untrustedClientCert, untrustedClientKey, err := kpi.CreateLeafCert(untrustedSignLeaf, "go mTLS Untrusted Client")
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client certificate: %w", err)
 	}

@@ -5,7 +5,7 @@ import (
 	"encoding/pem"
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 // step3GenerateClientCertificate creates the trusted client certificate and PEM material for the mutual-TLS client.
@@ -15,7 +15,7 @@ func step3GenerateClientCertificate(state *demoState) error {
 	fmt.Println("The server will require this certificate and verify it against the trusted CA.")
 	fmt.Println()
 
-	clientCert, clientPrivateKey, err := cert.CreateLeafCert(state.signLeaf, "go mTLS Demo Client")
+	clientCert, clientPrivateKey, err := kpi.CreateLeafCert(state.signLeaf, "go mTLS Demo Client")
 	if err != nil {
 		return fmt.Errorf("error creating client certificate: %w", err)
 	}
@@ -30,6 +30,6 @@ func step3GenerateClientCertificate(state *demoState) error {
 	state.clientCertPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: clientCert.Raw})
 	state.clientKeyPEM = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: clientPrivPEMBytes})
 
-	cert.PrintCertificateInfo(clientCert)
+	kpi.PrintCertificateInfo(clientCert)
 	return nil
 }
