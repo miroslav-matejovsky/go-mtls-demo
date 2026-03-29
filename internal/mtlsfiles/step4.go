@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 // step4GenerateUntrustedClient creates a separate client identity signed by a different CA to use in the rejection flow.
@@ -15,11 +15,11 @@ func step4GenerateUntrustedClient(state *demoState, untrustedCfg UntrustedClient
 	fmt.Printf("Untrusted client files written to: %s\n", filepath.Dir(untrustedCfg.CertFile))
 	fmt.Println()
 
-	_, untrustedSignLeaf, err := cert.CreateCA(untrustedCfg.CACN, state.validity)
+	_, untrustedSignLeaf, err := kpi.CreateCA(untrustedCfg.CACN, state.validity)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted CA: %w", err)
 	}
-	untrustedClientCert, untrustedClientKey, err := cert.CreateLeafCert(untrustedSignLeaf, untrustedCfg.CN)
+	untrustedClientCert, untrustedClientKey, err := kpi.CreateLeafCert(untrustedSignLeaf, untrustedCfg.CN)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client certificate: %w", err)
 	}
@@ -27,10 +27,10 @@ func step4GenerateUntrustedClient(state *demoState, untrustedCfg UntrustedClient
 	if err != nil {
 		return fmt.Errorf("error marshaling untrusted client key: %w", err)
 	}
-	if err := cert.WriteCert(untrustedCfg.CertFile, untrustedClientCert); err != nil {
+	if err := kpi.WriteCert(untrustedCfg.CertFile, untrustedClientCert); err != nil {
 		return fmt.Errorf("error writing untrusted client certificate: %w", err)
 	}
-	if err := cert.WriteKey(untrustedCfg.KeyFile, untrustedKeyBytes); err != nil {
+	if err := kpi.WriteKey(untrustedCfg.KeyFile, untrustedKeyBytes); err != nil {
 		return fmt.Errorf("error writing untrusted client key: %w", err)
 	}
 	// The untrusted client still needs the server's CA cert to verify the server during

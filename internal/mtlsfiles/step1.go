@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 // step1GenerateCertificates creates the CA plus trusted server and client credentials and writes them to their directories.
@@ -35,7 +35,7 @@ func step1GenerateCertificates(state *demoState, opCfg OperatorConfig, serverCfg
 	state.operator = operator
 	state.validity = validity
 
-	cert.PrintCertificateInfo(operator.CACert())
+	kpi.PrintCertificateInfo(operator.CACert())
 	fmt.Printf("  [OPERATOR] CA Certificate → %s\n", opCfg.CertFile)
 	fmt.Printf("  [OPERATOR] Distributed to server → %s\n", serverCfg.CACertFile)
 	fmt.Printf("  [OPERATOR] Distributed to client → %s\n", clientCfg.CACertFile)
@@ -50,14 +50,14 @@ func step1GenerateCertificates(state *demoState, opCfg OperatorConfig, serverCfg
 	if err != nil {
 		return fmt.Errorf("error marshaling server key: %w", err)
 	}
-	if err := cert.WriteCert(serverCfg.CertFile, serverCert); err != nil {
+	if err := kpi.WriteCert(serverCfg.CertFile, serverCert); err != nil {
 		return fmt.Errorf("error writing server certificate: %w", err)
 	}
-	if err := cert.WriteKey(serverCfg.KeyFile, serverKeyBytes); err != nil {
+	if err := kpi.WriteKey(serverCfg.KeyFile, serverKeyBytes); err != nil {
 		return fmt.Errorf("error writing server key: %w", err)
 	}
 
-	cert.PrintCertificateInfo(serverCert)
+	kpi.PrintCertificateInfo(serverCert)
 	fmt.Printf("  [SERVER] Certificate → %s\n", serverCfg.CertFile)
 	fmt.Printf("  [SERVER] Private key  → %s\n", serverCfg.KeyFile)
 	fmt.Println()
@@ -70,14 +70,14 @@ func step1GenerateCertificates(state *demoState, opCfg OperatorConfig, serverCfg
 	if err != nil {
 		return fmt.Errorf("error marshaling client key: %w", err)
 	}
-	if err := cert.WriteCert(clientCfg.CertFile, clientCert); err != nil {
+	if err := kpi.WriteCert(clientCfg.CertFile, clientCert); err != nil {
 		return fmt.Errorf("error writing client certificate: %w", err)
 	}
-	if err := cert.WriteKey(clientCfg.KeyFile, clientKeyBytes); err != nil {
+	if err := kpi.WriteKey(clientCfg.KeyFile, clientKeyBytes); err != nil {
 		return fmt.Errorf("error writing client key: %w", err)
 	}
 
-	cert.PrintCertificateInfo(clientCert)
+	kpi.PrintCertificateInfo(clientCert)
 	fmt.Printf("  [CLIENT] Certificate → %s\n", clientCfg.CertFile)
 	fmt.Printf("  [CLIENT] Private key  → %s\n", clientCfg.KeyFile)
 	fmt.Println()
