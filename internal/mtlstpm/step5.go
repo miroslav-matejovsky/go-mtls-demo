@@ -8,7 +8,7 @@ import (
 	"io"
 	"log"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 // step5StartServerAndMakeTrustedRequest starts the file-backed mTLS server and completes the trusted Windows-store client request.
@@ -52,7 +52,7 @@ func step5StartServerAndMakeTrustedRequest(state *demoState, serverCfg ServerCon
 	fmt.Printf("[CLIENT] Server certificate verified: %s (issued by %s)\n",
 		resp.TLS.PeerCertificates[0].Subject.CommonName, resp.TLS.PeerCertificates[0].Issuer.CommonName)
 	fmt.Printf("[CLIENT] Handshake complete  — version: %s, cipher suite: %s\n",
-		cert.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
+		kpi.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
 	fmt.Printf("[CLIENT] Signing performed by: %s (private key never left the provider)\n", state.provider)
 	fmt.Println("[CLIENT] Response:", resp.Status)
 	fmt.Println()

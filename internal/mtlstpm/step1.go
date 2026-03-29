@@ -6,7 +6,7 @@ import (
 	"crypto/x509"
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 // step1GenerateCAAndServer creates the in-memory CA, signs the server certificate, and writes server files to disk.
@@ -28,10 +28,10 @@ func step1GenerateCAAndServer(state *demoState, opCfg OperatorConfig, serverCfg 
 	if err != nil {
 		return fmt.Errorf("error marshaling server key: %w", err)
 	}
-	if err := cert.WriteCert(serverCfg.CertFile, serverCert); err != nil {
+	if err := kpi.WriteCert(serverCfg.CertFile, serverCert); err != nil {
 		return fmt.Errorf("error writing server certificate: %w", err)
 	}
-	if err := cert.WriteKey(serverCfg.KeyFile, serverKeyBytes); err != nil {
+	if err := kpi.WriteKey(serverCfg.KeyFile, serverKeyBytes); err != nil {
 		return fmt.Errorf("error writing server key: %w", err)
 	}
 	if err := operator.DistributeCA(serverCfg.CACertFile); err != nil {
@@ -40,8 +40,8 @@ func step1GenerateCAAndServer(state *demoState, opCfg OperatorConfig, serverCfg 
 
 	state.operator = operator
 
-	cert.PrintCertificateInfo(operator.CACert())
-	cert.PrintCertificateInfo(serverCert)
+	kpi.PrintCertificateInfo(operator.CACert())
+	kpi.PrintCertificateInfo(serverCert)
 	fmt.Printf("  [SERVER]   Certificate → %s\n", serverCfg.CertFile)
 	fmt.Printf("  [SERVER]   Private key  → %s\n", serverCfg.KeyFile)
 	fmt.Printf("  [SERVER]   CA cert      → %s\n", serverCfg.CACertFile)

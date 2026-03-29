@@ -8,7 +8,7 @@ import (
 	"crypto/x509"
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 // Operator represents the Certificate Authority actor.
@@ -17,7 +17,7 @@ import (
 type Operator struct {
 	cfg    OperatorConfig
 	caCert *x509.Certificate
-	signFn cert.SignerFunc
+	signFn kpi.SignerFunc
 }
 
 // NewOperator creates a new CA from cfg, writes the CA certificate to cfg.CertFile,
@@ -27,11 +27,11 @@ func NewOperator(cfg OperatorConfig) (*Operator, error) {
 	if err != nil {
 		return nil, err
 	}
-	caCert, signFn, err := cert.CreateCA(cfg.CN, validity)
+	caCert, signFn, err := kpi.CreateCA(cfg.CN, validity)
 	if err != nil {
 		return nil, fmt.Errorf("creating CA: %w", err)
 	}
-	if err := cert.WriteCert(cfg.CertFile, caCert); err != nil {
+	if err := kpi.WriteCert(cfg.CertFile, caCert); err != nil {
 		return nil, fmt.Errorf("writing CA certificate: %w", err)
 	}
 	return &Operator{cfg: cfg, caCert: caCert, signFn: signFn}, nil
@@ -39,7 +39,7 @@ func NewOperator(cfg OperatorConfig) (*Operator, error) {
 
 // SignCert generates a new ECDSA key pair and issues a leaf certificate for cn.
 func (o *Operator) SignCert(cn string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-	return cert.CreateLeafCert(o.signFn, cn)
+	return kpi.CreateLeafCertAndKey(o.signFn, cn)
 }
 
 // SignCertForKey issues a leaf certificate for an externally-provided public key.
@@ -51,7 +51,7 @@ func (o *Operator) SignCertForKey(pub crypto.PublicKey, cn string) (*x509.Certif
 // DistributeCA writes the CA certificate to destPath, simulating the operator
 // handing the public CA cert to a party (server or client team).
 func (o *Operator) DistributeCA(destPath string) error {
-	return cert.WriteCert(destPath, o.caCert)
+	return kpi.WriteCert(destPath, o.caCert)
 }
 
 // CACert returns the operator's CA certificate.

@@ -5,7 +5,7 @@ package mtlstpm
 import (
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 // step6DemonstrateUntrustedClient creates a different-CA client in memory and shows the server rejecting it.
@@ -23,11 +23,11 @@ func step6DemonstrateUntrustedClient(state *demoState, opCfg OperatorConfig, unt
 	if err != nil {
 		return err
 	}
-	_, untrustedSign, err := cert.CreateCA(untrustedCfg.CACN, validity)
+	_, untrustedSign, err := kpi.CreateCA(untrustedCfg.CACN, validity)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted CA: %w", err)
 	}
-	untrustedCert, untrustedKey, err := cert.CreateLeafCert(untrustedSign, untrustedCfg.CN)
+	untrustedCert, untrustedKey, err := kpi.CreateLeafCertAndKey(untrustedSign, untrustedCfg.CN)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client certificate: %w", err)
 	}

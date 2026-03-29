@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/certtostore"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 // step3GenerateClientKey opens the Windows certificate store, generates the provider-backed key, and gets a signed client certificate.
@@ -48,7 +48,7 @@ func step3GenerateClientKey(state *demoState, opCfg OperatorConfig, clientCfg Cl
 	state.clientCert = clientCert
 
 	fmt.Printf("  [CLIENT] Key generated — algorithm: ECDSA P-256, provider: %s\n", state.provider)
-	cert.PrintCertificateInfo(clientCert)
+	kpi.PrintCertificateInfo(clientCert)
 	fmt.Println("  [CLIENT] Private key lives inside the provider — no .key file is written.")
 	fmt.Println()
 	return nil
