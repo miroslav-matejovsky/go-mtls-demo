@@ -33,6 +33,29 @@ go run ./cmd/ <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlsenterprise|mtlsenterprisetp
 .\scripts\run.ps1  <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlsenterprise|mtlsenterprisetpm|mtlstpm>
 ```
 
+## Glossary
+
+| Abbreviation     | Meaning                                   | How it is used here                                                                                 |
+| ---------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| TLS              | Transport Layer Security                  | One-way TLS demos where the client verifies the server certificate                                  |
+| mTLS             | Mutual TLS                                | Demos where both client and server present and verify certificates                                  |
+| PKI              | Public Key Infrastructure                 | The certificate chain setup used across the demos, from simple local CAs to enterprise-style chains |
+| CA               | Certificate Authority                     | Issues the server and client certificates used in the demos                                         |
+| Root CA          | Top-level certificate authority           | Acts as the trust anchor for demo certificate chains                                                |
+| Intermediate CA  | Certificate authority signed by a root CA | Used in the enterprise-focused demos to model a more realistic chain                                |
+| leaf certificate | End-entity certificate                    | The actual server or client certificate presented during the TLS handshake                          |
+| EKU              | Extended Key Usage                        | Enterprise demos use it to separate server and client certificate purposes                          |
+| SAN              | Subject Alternative Name                  | Holds DNS names and identities checked during certificate validation                                |
+| SKID             | Subject Key Identifier                    | Included on generated certificates to help identify the subject key                                 |
+| AKID             | Authority Key Identifier                  | Included to link an issued certificate back to its issuer                                           |
+| TPM              | Trusted Platform Module                   | Used for Windows client key storage in the TPM-backed demos                                         |
+| HSM              | Hardware Security Module                  | Mentioned as the broader hardware-backed key storage category related to TPM-backed keys            |
+| KSP              | Key Storage Provider                      | Windows provider used when creating or loading TPM/software-backed keys                             |
+| CNG              | Cryptography Next Generation              | The Windows cryptography platform behind the TPM and cert-store integrations                        |
+| NCrypt           | Windows CNG key API family                | The Windows key API layer used under provider-backed certificate operations                         |
+| PEM              | Privacy-Enhanced Mail                     | Text format used for certificate and key files in the in-memory and file-based demos                |
+| DER              | Distinguished Encoding Rules              | Binary X.509 encoding wrapped by PEM when certificates are written to files                         |
+
 ## References
 
 - [Create & Sign x509 Certificates in Golang](https://medium.com/@shaneutt/create-sign-x509-certificates-in-golang-8ac4ae49f903)
