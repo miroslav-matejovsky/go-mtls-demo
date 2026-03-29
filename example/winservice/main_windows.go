@@ -183,8 +183,7 @@ func step1CreateRootCA(state *demoState) error {
 		return fmt.Errorf("creating root CA: %w", err)
 	}
 
-	rootCertFile := certBaseDir + "/root-ca/cert.crt"
-	if err := cert.WriteCert(rootCertFile, rootCert); err != nil {
+	if err := cert.WriteCert(rootCACertFile, rootCert); err != nil {
 		return fmt.Errorf("writing root CA cert: %w", err)
 	}
 
@@ -193,8 +192,7 @@ func step1CreateRootCA(state *demoState) error {
 		return fmt.Errorf("creating intermediate CA: %w", err)
 	}
 
-	intCertFile := certBaseDir + "/intermediate-ca/cert.crt"
-	if err := cert.WriteCert(intCertFile, intCert); err != nil {
+	if err := cert.WriteCert(intCACertFile, intCert); err != nil {
 		return fmt.Errorf("writing intermediate CA cert: %w", err)
 	}
 
@@ -204,7 +202,7 @@ func step1CreateRootCA(state *demoState) error {
 
 	fmt.Println("[OPERATOR] Root CA certificate:")
 	cert.PrintCertificateInfo(rootCert)
-	fmt.Printf("  Root CA cert → %s\n", rootCertFile)
+	fmt.Printf("  Root CA cert → %s\n", rootCACertFile)
 	fmt.Println("  Root CA key stays in memory — never written to disk.")
 	fmt.Println()
 	return nil
@@ -245,29 +243,25 @@ func step3GenerateServerCert(state *demoState) error {
 		return fmt.Errorf("creating server cert: %w", err)
 	}
 
-	chainFile := certBaseDir + "/server/chain.crt"
-	keyFile := certBaseDir + "/server/server.key"
-	rootCertFile := certBaseDir + "/server/root-ca.crt"
-
-	if err := cert.WriteChainBundle(chainFile, serverCert, state.intCert); err != nil {
+	if err := cert.WriteChainBundle(serverChainFile, serverCert, state.intCert); err != nil {
 		return fmt.Errorf("writing server chain: %w", err)
 	}
 	keyDER, err := x509.MarshalECPrivateKey(serverKey)
 	if err != nil {
 		return fmt.Errorf("marshaling server key: %w", err)
 	}
-	if err := cert.WriteKey(keyFile, keyDER); err != nil {
+	if err := cert.WriteKey(serverKeyFile, keyDER); err != nil {
 		return fmt.Errorf("writing server key: %w", err)
 	}
-	if err := cert.WriteCert(rootCertFile, state.rootCert); err != nil {
+	if err := cert.WriteCert(serverRootCAFile, state.rootCert); err != nil {
 		return fmt.Errorf("distributing root CA to server: %w", err)
 	}
 
 	fmt.Println("[OPERATOR] Server certificate:")
 	cert.PrintCertificateInfo(serverCert)
-	fmt.Printf("  [SERVER] Chain bundle → %s\n", chainFile)
-	fmt.Printf("  [SERVER] Private key  → %s\n", keyFile)
-	fmt.Printf("  [SERVER] Root CA cert → %s\n", rootCertFile)
+	fmt.Printf("  [SERVER] Chain bundle → %s\n", serverChainFile)
+	fmt.Printf("  [SERVER] Private key  → %s\n", serverKeyFile)
+	fmt.Printf("  [SERVER] Root CA cert → %s\n", serverRootCAFile)
 	fmt.Println()
 	return nil
 }
@@ -381,16 +375,12 @@ func step7StartServerAndRequest(state *demoState) error {
 	fmt.Printf("Client uses store-backed key (provider: %s) with enterprise cert chain.\n", state.provider)
 	fmt.Println()
 
-	chainFile := certBaseDir + "/server/chain.crt"
-	keyFile := certBaseDir + "/server/server.key"
-	rootCertFile := certBaseDir + "/server/root-ca.crt"
-
 	// Create server
-	serverCert, err := tls.LoadX509KeyPair(chainFile, keyFile)
+	serverCert, err := tls.LoadX509KeyPair(serverChainFile, serverKeyFile)
 	if err != nil {
 		return fmt.Errorf("loading server cert: %w", err)
 	}
-	rootPEM, err := os.ReadFile(rootCertFile)
+	rootPEM, err := os.ReadFile(serverRootCAFile)
 	if err != nil {
 		return fmt.Errorf("reading root CA cert: %w", err)
 	}
