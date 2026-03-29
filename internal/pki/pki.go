@@ -137,3 +137,36 @@ func keyUsageNames(ku x509.KeyUsage) string {
 	}
 	return strings.Join(names, ", ")
 }
+
+// CertPoolFromCertificate builds an x509.CertPool containing the given certificate.
+// Callers use this to populate the ClientCAs / RootCAs field of a tls.Config when
+// the trust anchor is already held in memory as an *x509.Certificate.
+func CertPoolFromCertificate(caCert *x509.Certificate) (*x509.CertPool, error) {
+	if caCert == nil {
+		return nil, fmt.Errorf("certificate authority certificate is required")
+	}
+	certPool := x509.NewCertPool()
+	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caCert.Raw})
+	if !certPool.AppendCertsFromPEM(caPEM) {
+		return nil, fmt.Errorf("failed to build certificate pool")
+	}
+	return certPool, nil
+}
+
+// CertPoolFromFile builds an x509.CertPool by reading a PEM-encoded certificate
+// file from disk. Callers use this when the trust anchor is stored on the file
+// system (file-backed scenarios).
+func CertPoolFromFile(path string) (*x509.CertPool, error) {
+	if path == "" {
+		return nil, fmt.Errorf("certificate authority file is required")
+	}
+	pemBytes, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading certificate authority file: %w", err)
+	}
+	certPool := x509.NewCertPool()
+	if !certPool.AppendCertsFromPEM(pemBytes) {
+		return nil, fmt.Errorf("failed to parse certificate authority file %s", path)
+	}
+	return certPool, nil
+}
