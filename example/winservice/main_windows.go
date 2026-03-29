@@ -18,9 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/certtostore"
-
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
 )
 
 const (
@@ -48,7 +47,7 @@ type demoState struct {
 	intCert      *x509.Certificate
 	signLeaf     kpi.ProfiledSignerFunc
 	provider     string
-	store        *certtostore.WinCertStore
+	store        *tpm.CurrentUserStore
 	clientSigner crypto.Signer
 	clientCert   *x509.Certificate
 	storedCert   *x509.Certificate
@@ -273,26 +272,21 @@ func step4GenerateClientKey(state *demoState) error {
 	fmt.Println("Using NCrypt software KSP (fallback for machines without TPM).")
 	fmt.Println()
 
-	state.provider = certtostore.ProviderMSSoftware
+	state.provider = tpm.SoftwareProvider()
 	fmt.Printf("  Provider : %s\n", state.provider)
 	fmt.Printf("  Container: %s\n", containerName)
 	fmt.Println()
 
-	store, err := certtostore.OpenWinCertStoreCurrentUser(
-		state.provider,
-		containerName,
-		[]string{"CN=" + intermediCACN},
-		nil,
-		false,
-	)
+	store, err := tpm.OpenCurrentUserStore(tpm.OpenCurrentUserStoreOptions{
+		Provider:          state.provider,
+		Container:         containerName,
+		IssuerCommonNames: []string{intermediCACN},
+	})
 	if err != nil {
 		return fmt.Errorf("opening Windows cert store: %w", err)
 	}
 
-	signer, err := store.Generate(certtostore.GenerateOpts{
-		Algorithm: certtostore.EC,
-		Size:      256,
-	})
+	signer, err := store.GenerateECDSAP256()
 	if err != nil {
 		store.Close()
 		return fmt.Errorf("generating key in cert store: %w", err)
@@ -341,7 +335,7 @@ func step6ImportClientCert(state *demoState) error {
 	fmt.Println()
 
 	// StoreWithDisposition: second arg is the direct issuer (intermediate, NOT root)
-	if err := state.store.StoreWithDisposition(state.clientCert, state.intCert, 3 /* CERT_STORE_ADD_REPLACE_EXISTING */); err != nil {
+	if err := state.store.StoreCertificate(state.clientCert, state.intCert); err != nil {
 		return fmt.Errorf("storing client certificate: %w", err)
 	}
 	fmt.Println("  [CLIENT] Certificate stored in CurrentUser\\My")
@@ -349,15 +343,9 @@ func step6ImportClientCert(state *demoState) error {
 
 	// Re-derive key from store (simulates runtime lookup)
 	fmt.Println("  [CLIENT] Simulating runtime key lookup (re-deriving key from CertContext) ...")
-	storedCert, ctx, _, err := state.store.CertByCommonName(clientCN)
+	storedCert, storeKey, err := state.store.LoadCertificateByCommonName(clientCN)
 	if err != nil {
 		return fmt.Errorf("looking up cert from store: %w", err)
-	}
-	defer certtostore.FreeCertContext(ctx)
-
-	storeKey, err := state.store.CertKey(ctx)
-	if err != nil {
-		return fmt.Errorf("deriving key from cert context: %w", err)
 	}
 
 	state.storedCert = storedCert
@@ -582,7 +570,7 @@ func printCleanupInstructions() {
 	fmt.Println("  $store.Close()")
 	fmt.Println()
 	fmt.Println("  # 3. Delete the NCrypt key container:")
-	fmt.Printf("  $p = New-Object System.Security.Cryptography.CngProvider('%s')\n", certtostore.ProviderMSSoftware)
+	fmt.Printf("  $p = New-Object System.Security.Cryptography.CngProvider('%s')\n", tpm.SoftwareProvider())
 	fmt.Printf("  $k = [System.Security.Cryptography.CngKey]::Open('%s', $p)\n", containerName)
 	fmt.Println("  $k.Delete()")
 }

@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/certtostore"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
 )
 
 // RunDemo loads all configs from default paths and runs the full enterprise mTLS + TPM demo.
@@ -89,7 +89,7 @@ func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfi
 type demoState struct {
 	operator         *Operator
 	provider         string
-	store            *certtostore.WinCertStore
+	store            *tpm.CurrentUserStore
 	clientSigner     crypto.Signer
 	clientCert       *x509.Certificate
 	storedClientCert *x509.Certificate

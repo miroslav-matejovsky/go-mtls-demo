@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/certtostore"
-
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pwsh"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
 )
 
 // step4GenerateClientKey checks TPM availability, opens the Windows cert store, and generates the client key.
@@ -36,12 +35,12 @@ func step4GenerateClientKey(state *demoState, clientCfg ClientConfig, opCfg Oper
 		}
 
 		if tpmAvailable {
-			state.provider = certtostore.ProviderMSPlatform
+			state.provider = tpm.SelectProvider("", true)
 			fmt.Println("  [TPM] TPM 2.0 present and enabled.")
 			fmt.Printf("  [TPM] Provider selected: %s\n", state.provider)
 			fmt.Println("  [TPM] The private key will be bound to this machine's TPM — it cannot be exported.")
 		} else {
-			state.provider = certtostore.ProviderMSSoftware
+			state.provider = tpm.SelectProvider("", false)
 			fmt.Println("  [TPM] TPM not available or not ready.")
 			fmt.Printf("  [TPM] Provider selected: %s\n", state.provider)
 			fmt.Println("  [TPM] The private key will be stored in NCrypt software key storage.")
@@ -55,21 +54,16 @@ func step4GenerateClientKey(state *demoState, clientCfg ClientConfig, opCfg Oper
 	fmt.Println("certtostore returns a crypto.Signer — operations use the provider, raw bytes stay inside.")
 	fmt.Println()
 
-	store, err := certtostore.OpenWinCertStoreCurrentUser(
-		state.provider,
-		clientCfg.Container,
-		[]string{"CN=" + opCfg.IntermediateCA.CN},
-		nil,
-		false,
-	)
+	store, err := tpm.OpenCurrentUserStore(tpm.OpenCurrentUserStoreOptions{
+		Provider:          state.provider,
+		Container:         clientCfg.Container,
+		IssuerCommonNames: []string{opCfg.IntermediateCA.CN},
+	})
 	if err != nil {
 		return fmt.Errorf("error opening Windows cert store: %w", err)
 	}
 
-	signer, err := store.Generate(certtostore.GenerateOpts{
-		Algorithm: certtostore.EC,
-		Size:      256,
-	})
+	signer, err := store.GenerateECDSAP256()
 	if err != nil {
 		store.Close()
 		return fmt.Errorf("error generating key in Windows cert store: %w", err)

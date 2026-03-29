@@ -5,9 +5,8 @@ package mtlstpm
 import (
 	"fmt"
 
-	"github.com/google/certtostore"
-
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
 )
 
 // step3GenerateClientKey opens the Windows certificate store, generates the provider-backed key, and gets a signed client certificate.
@@ -18,21 +17,16 @@ func step3GenerateClientKey(state *demoState, opCfg OperatorConfig, clientCfg Cl
 	fmt.Println("certtostore returns a crypto.Signer — operations use the provider, raw bytes stay inside.")
 	fmt.Println()
 
-	store, err := certtostore.OpenWinCertStoreCurrentUser(
-		state.provider,
-		clientCfg.Container,
-		[]string{"CN=" + opCfg.CN},
-		nil,
-		false,
-	)
+	store, err := tpm.OpenCurrentUserStore(tpm.OpenCurrentUserStoreOptions{
+		Provider:          state.provider,
+		Container:         clientCfg.Container,
+		IssuerCommonNames: []string{opCfg.CN},
+	})
 	if err != nil {
 		return fmt.Errorf("error opening Windows cert store: %w", err)
 	}
 
-	signer, err := store.Generate(certtostore.GenerateOpts{
-		Algorithm: certtostore.EC,
-		Size:      256,
-	})
+	signer, err := store.GenerateECDSAP256()
 	if err != nil {
 		store.Close()
 		return fmt.Errorf("error generating key in Windows cert store: %w", err)

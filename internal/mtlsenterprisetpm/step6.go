@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/certtostore"
-	"golang.org/x/sys/windows"
-
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pwsh"
 )
 
@@ -20,7 +17,7 @@ func step6ImportClientCert(state *demoState, clientCfg ClientConfig) error {
 	fmt.Println()
 
 	// StoreWithDisposition: second arg is the CA cert (intermediate, the direct issuer)
-	if err := state.store.StoreWithDisposition(state.clientCert, state.operator.IntermediateCert(), windows.CERT_STORE_ADD_REPLACE_EXISTING); err != nil {
+	if err := state.store.StoreCertificate(state.clientCert, state.operator.IntermediateCert()); err != nil {
 		return fmt.Errorf("error storing client certificate: %w", err)
 	}
 	fmt.Printf("  [CLIENT] Certificate stored in CurrentUser\\My\n")
@@ -37,15 +34,9 @@ func step6ImportClientCert(state *demoState, clientCfg ClientConfig) error {
 
 	// Simulate runtime lookup: find cert by CN, then derive the signer from the CertContext.
 	fmt.Println("  [CLIENT] Simulating runtime key lookup (re-deriving key from CertContext) ...")
-	storedCert, ctx, _, err := state.store.CertByCommonName(clientCfg.CN)
+	storedCert, storeKey, err := state.store.LoadCertificateByCommonName(clientCfg.CN)
 	if err != nil {
 		return fmt.Errorf("error looking up cert from store by CN: %w", err)
-	}
-	defer certtostore.FreeCertContext(ctx)
-
-	storeKey, err := state.store.CertKey(ctx)
-	if err != nil {
-		return fmt.Errorf("error deriving key from cert context: %w", err)
 	}
 
 	state.storedClientCert = storedCert

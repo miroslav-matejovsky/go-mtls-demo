@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/certtostore"
-
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pwsh"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
 )
 
 // step2CheckTPM detects whether a TPM-backed provider can be used or whether the demo should fall back to software storage.
@@ -38,12 +37,12 @@ func step2CheckTPM(state *demoState, clientCfg ClientConfig) error {
 	}
 
 	if tpmAvailable {
-		state.provider = certtostore.ProviderMSPlatform
+		state.provider = tpm.SelectProvider("", true)
 		fmt.Println("  [TPM] TPM 2.0 present and enabled.")
 		fmt.Printf("  [TPM] Provider selected: %s\n", state.provider)
 		fmt.Println("  [TPM] The private key will be bound to this machine's TPM — it cannot be exported.")
 	} else {
-		state.provider = certtostore.ProviderMSSoftware
+		state.provider = tpm.SelectProvider("", false)
 		fmt.Println("  [TPM] TPM not available or not ready.")
 		fmt.Printf("  [TPM] Provider selected: %s\n", state.provider)
 		fmt.Println("  [TPM] The private key will be stored in NCrypt software key storage.")

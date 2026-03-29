@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/certtostore"
-	"golang.org/x/sys/windows"
-
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pwsh"
 )
 
@@ -18,7 +15,7 @@ func step4ImportClientCertificate(state *demoState, clientCfg ClientConfig) erro
 	fmt.Printf("Linking signed certificate to key container %q in CurrentUser\\My.\n", clientCfg.Container)
 	fmt.Println()
 
-	if err := state.store.StoreWithDisposition(state.clientCert, state.operator.CACert(), windows.CERT_STORE_ADD_REPLACE_EXISTING); err != nil {
+	if err := state.store.StoreCertificate(state.clientCert, state.operator.CACert()); err != nil {
 		return fmt.Errorf("error storing client certificate: %w", err)
 	}
 	fmt.Printf("  [CLIENT] Certificate stored in CurrentUser\\My\n")
@@ -37,15 +34,9 @@ func step4ImportClientCertificate(state *demoState, clientCfg ClientConfig) erro
 	// from the CertContext. This is what a real application does on startup —
 	// it has no signer in memory, it must re-derive it from the store.
 	fmt.Println("  [CLIENT] Simulating runtime key lookup (re-deriving key from CertContext) ...")
-	storedCert, ctx, _, err := state.store.CertByCommonName(clientCfg.CN)
+	storedCert, storeKey, err := state.store.LoadCertificateByCommonName(clientCfg.CN)
 	if err != nil {
 		return fmt.Errorf("error looking up cert from store by CN: %w", err)
-	}
-	defer certtostore.FreeCertContext(ctx)
-
-	storeKey, err := state.store.CertKey(ctx)
-	if err != nil {
-		return fmt.Errorf("error deriving key from cert context: %w", err)
 	}
 
 	state.storedClientCert = storedCert

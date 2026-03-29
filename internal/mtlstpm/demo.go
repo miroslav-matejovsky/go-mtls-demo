@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/certtostore"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
 )
 
 func RunDemo() error {
@@ -82,7 +82,7 @@ func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfi
 type demoState struct {
 	operator         *Operator
 	provider         string
-	store            *certtostore.WinCertStore
+	store            *tpm.CurrentUserStore
 	clientCert       *x509.Certificate
 	storedClientCert *x509.Certificate
 	storeKey         crypto.Signer
