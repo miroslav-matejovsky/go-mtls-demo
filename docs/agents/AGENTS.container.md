@@ -1,4 +1,4 @@
-# AGENTS.container.md — Deploying mTLS Go Services in Containers (Azure)
+# Deploying mTLS Go Services in Containers (Azure)
 
 > **Parent:** [AGENTS.mtls.md](AGENTS.mtls.md) — mTLS concepts and architecture
 > **Layer:** Infrastructure

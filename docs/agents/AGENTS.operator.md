@@ -1,4 +1,4 @@
-# AGENTS.operator.md — PKI Operator Workflows
+# PKI Operator Workflows
 
 > **Parent:** [AGENTS.mtls.md](AGENTS.mtls.md) — mTLS concepts and architecture
 > **Layer:** Application

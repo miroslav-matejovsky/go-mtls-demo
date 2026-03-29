@@ -1,4 +1,4 @@
-# AGENTS.certs.md — Certificate Domain
+# Certificate Domain
 
 > **Parent:** [AGENTS.mtls.md](AGENTS.mtls.md) — mTLS concepts and architecture
 > **Layer:** Domain

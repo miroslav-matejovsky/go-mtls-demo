@@ -1,4 +1,4 @@
-# AGENTS.windows.md — Windows Server mTLS Deployment Guide
+# Windows Server mTLS Deployment Guide
 
 > **Parent:** [AGENTS.mtls.md](AGENTS.mtls.md) — mTLS concepts and architecture
 > **Layer:** Infrastructure

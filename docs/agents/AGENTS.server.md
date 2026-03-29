@@ -1,4 +1,4 @@
-# AGENTS.server.md — Production mTLS Server in Go
+# Production mTLS Server in Go
 
 > **Parent:** [AGENTS.mtls.md](AGENTS.mtls.md) — mTLS concepts and architecture
 > **Layer:** Adapter

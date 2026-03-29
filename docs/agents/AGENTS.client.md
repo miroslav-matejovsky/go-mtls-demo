@@ -1,4 +1,4 @@
-# AGENTS.client.md — Production mTLS Client in Go
+# Production mTLS Client in Go
 
 > **Parent:** [AGENTS.mtls.md](AGENTS.mtls.md) — mTLS concepts and architecture
 > **Layer:** Adapter

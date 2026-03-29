@@ -1,4 +1,4 @@
-# AGENTS.mtls.md — Enterprise mTLS in Go
+# Enterprise mTLS in Go
 
 > **Layer:** Root
 > **Children:**
