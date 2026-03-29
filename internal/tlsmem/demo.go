@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 func RunDemo() error {
@@ -32,7 +32,7 @@ func runDemo() error {
 
 type demoState struct {
 	caCert           *x509.Certificate
-	signLeaf         cert.SignerFunc
+	signLeaf         kpi.SignerFunc
 	serverCert       *x509.Certificate
 	serverPrivateKey *ecdsa.PrivateKey
 	serverCertPEM    []byte
