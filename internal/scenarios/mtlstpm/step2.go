@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pwsh"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
 )
 
 // step2CheckTPM detects whether a TPM-backed provider can be used or whether the demo should fall back to software storage.
 func step2CheckTPM(state *demoState, clientCfg ClientConfig) error {
 	fmt.Println("=== Step 2/7: Check TPM availability ===")
-	fmt.Println("Querying the system's Trusted Platform Module (TPM) via Get-Tpm.")
+	fmt.Println("Querying the system's Trusted Platform Module (TPM) via native Windows APIs.")
 	fmt.Println("If available, the client private key will be generated inside the TPM and never exported.")
 	fmt.Println()
 
@@ -25,7 +24,7 @@ func step2CheckTPM(state *demoState, clientCfg ClientConfig) error {
 		return nil
 	}
 
-	tpmAvailable, tpmDetails, tpmErr := pwsh.CheckTPM()
+	tpmAvailable, tpmDetails, tpmErr := tpm.CheckTPM()
 	if tpmErr != nil {
 		fmt.Printf("  [TPM] Warning: could not query TPM — %v\n", tpmErr)
 		fmt.Println("  [TPM] Falling back to Microsoft Software Key Storage Provider.")

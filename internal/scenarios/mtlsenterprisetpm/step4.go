@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pwsh"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
 )
 
 // step4GenerateClientKey checks TPM availability, opens the Windows cert store, and generates the client key.
 func step4GenerateClientKey(state *demoState, clientCfg ClientConfig, opCfg OperatorConfig) error {
 	fmt.Println("=== Step 4/9: Generate client key in Windows Certificate Store ===")
-	fmt.Println("Querying the system's TPM via Get-Tpm. If available, the key will be TPM-bound.")
+	fmt.Println("Querying the system's TPM via native Windows APIs. If available, the key will be TPM-bound.")
 	fmt.Println()
 
 	// Detect or override the KSP provider
@@ -23,7 +22,7 @@ func step4GenerateClientKey(state *demoState, clientCfg ClientConfig, opCfg Oper
 		fmt.Println("  [TPM] Skipping TPM auto-detection.")
 		fmt.Println()
 	} else {
-		tpmAvailable, tpmDetails, tpmErr := pwsh.CheckTPM()
+		tpmAvailable, tpmDetails, tpmErr := tpm.CheckTPM()
 		if tpmErr != nil {
 			fmt.Printf("  [TPM] Warning: could not query TPM — %v\n", tpmErr)
 			fmt.Println("  [TPM] Falling back to Microsoft Software Key Storage Provider.")

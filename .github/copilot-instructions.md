@@ -44,7 +44,8 @@ No linter is configured. No CI/CD pipeline exists.
 ```
 internal/
   cert/        – shared: CA + leaf cert generation, PrintCertificateInfo, TLSVersionName, WriteCert, WriteKey
-  pwsh/        – PowerShell helpers used by mtlstpm: CheckTPM(), ShowCertsInStore()
+  pwsh/        – PowerShell process helpers used for cleanup scripts
+  tpm/         – shared Windows TPM + CurrentUser cert-store helpers
   scenarios/
     tlsmem/      – one-way TLS,   certs in memory
     mtlsmem/     – mutual TLS,    certs in memory
@@ -102,6 +103,8 @@ Each demo package has the same four-file structure:
 
 **`mtlstpm` uses `certtostore` for the client key.** `certtostore.OpenWinCertStoreCurrentUser(provider, container, issuers, ...)` opens the store; `store.Generate(GenerateOpts{EC, 256})` creates the TPM-backed key; `store.StoreWithDisposition(cert, caCert, 3)` imports the signed cert (disposition 3 = CERT_STORE_ADD_REPLACE_EXISTING) — the second argument is the CA certificate (never `nil`; the library unconditionally dereferences it). At runtime, re-derive the key with `store.CertByCommonName(cn)` → `store.CertKey(ctx)` → pass the `*Key` (which implements `crypto.Signer`) as `tls.Certificate.PrivateKey`. The `mtlstpm/client.go::CreateClient` accepts `crypto.Signer`, so it works for both the TPM-backed key and the in-memory `*ecdsa.PrivateKey` used by the untrusted client step. No automatic cleanup — demo prints manual PowerShell commands at the end. `//go:build windows` on all `mtlstpm/*.go` files. Dispatch via `cmd/mtlstpm_windows.go` / `cmd/mtlstpm_other.go`.
 
-**`internal/pwsh` package.** Wraps `exec.Command("powershell", ...)`. Exports `CheckTPM()` and `ShowCertsInStore(cn)`. No build constraint needed — it just invokes the `powershell` binary.
+**`internal/tpm` package.** Windows-only shared helpers for TPM detection, `CurrentUser\My` inspection, provider selection, key generation, certificate import, and runtime signer recovery.
+
+**`internal/pwsh` package.** Wraps `exec.Command("powershell", ...)` for script execution such as cleanup helpers. No build constraint needed — it just invokes the `powershell` binary.
 
 **Production agent guides and standalone examples.** `example/` contains standalone AGENTS.md files and runnable implementations. `example/mtls/` has enterprise mTLS (certs, operator, server, client packages). `example/winservice/` has Windows service + TPM. `example/container/` has containerized mTLS server + Dockerfile + K8s manifests. Each AGENTS.md is self-contained and can be copied into production repositories.

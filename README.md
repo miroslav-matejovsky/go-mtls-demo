@@ -49,6 +49,7 @@ go run ./cmd/ <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlsenterprise|mtlsenterprisetp
 | SKID             | Subject Key Identifier                    | Included on generated certificates to help identify the subject key                                 |
 | AKID             | Authority Key Identifier                  | Included to link an issued certificate back to its issuer                                           |
 | TPM              | Trusted Platform Module                   | Used for Windows client key storage in the TPM-backed demos                                         |
+| TBSI             | TPM Base Services interface               | Windows `Tbsi_*` API family used to query TPM capabilities such as device version                   |
 | HSM              | Hardware Security Module                  | Mentioned as the broader hardware-backed key storage category related to TPM-backed keys            |
 | KSP              | Key Storage Provider                      | Windows provider used when creating or loading TPM/software-backed keys                             |
 | CNG              | Cryptography Next Generation              | The Windows cryptography platform behind the TPM and cert-store integrations                        |

@@ -93,6 +93,8 @@
     "mtlsfiles",
     "mtlsmem",
     "mtlstpm",
+    "ncrypt",
+    "Tbsi",
     "tlsfiles",
     "tlsmem",
     "wincert"

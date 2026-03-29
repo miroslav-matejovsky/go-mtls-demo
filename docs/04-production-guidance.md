@@ -220,7 +220,7 @@ Windows CNG (Cryptography Next Generation) uses key storage providers (KSPs) to 
 | **Microsoft Software Key Storage Provider** | Software (NCrypt) | Configurable — default non-exportable | No |
 | Legacy CSPs (e.g. Microsoft Strong Cryptographic Provider) | Software (CryptoAPI) | Configurable | No |
 
-**The repo's `mtlstpm` demo auto-detects between the first two.** It prefers the TPM provider when available and falls back to the software KSP. This is controlled by `internal/pwsh.CheckTPM()` and the `provider_override` config field. See `internal/scenarios/mtlstpm/demo.go` for the detection logic.
+**The repo's `mtlstpm` demo auto-detects between the first two.** It prefers the TPM provider when available and falls back to the software KSP. This is controlled by `internal/tpm.CheckTPM()` and the `provider_override` config field. See `internal/scenarios/mtlstpm/step2.go` for the detection logic.
 
 Legacy CSPs are not recommended for new implementations. They use older CryptoAPI interfaces and do not support modern elliptic-curve key types.
 

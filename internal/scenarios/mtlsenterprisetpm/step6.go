@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pwsh"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
 )
 
 // step6ImportClientCert stores the signed certificate in the Windows cert store,
@@ -22,7 +22,7 @@ func step6ImportClientCert(state *demoState, clientCfg ClientConfig) error {
 	}
 	fmt.Printf("  [CLIENT] Certificate stored in CurrentUser\\My\n")
 
-	if storeInfo, err := pwsh.ShowCertsInStore(clientCfg.CN); err != nil {
+	if storeInfo, err := tpm.ShowCertsInStore(clientCfg.CN); err != nil {
 		fmt.Printf("  [CLIENT] Warning: could not query cert store — %v\n", err)
 	} else if storeInfo != "" {
 		fmt.Println("  [CLIENT] Cert store entry:")
