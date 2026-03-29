@@ -1,0 +1,6 @@
+# TODO
+
+- confirmation from user after each step in scenario
+- add more details about CertificateVerify and Session to the TLS handshake explanation
+- Make sure that CertificateVerify is included in the TLS handshake explanation, as it's a crucial step where the client proves possession of the private key corresponding to its certificate.
+- Explain TPM-based key storage in more detail, including how the client interacts with the TPM to perform cryptographic operations without exposing the private key.
