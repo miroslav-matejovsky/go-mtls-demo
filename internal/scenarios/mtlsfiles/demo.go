@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/authority"
+	sharedclient "github.com/miroslav-matejovsky/go-mtls-demo/internal/client"
+	sharedserver "github.com/miroslav-matejovsky/go-mtls-demo/internal/server"
 )
 
 func RunDemo() error {
@@ -91,4 +95,34 @@ func (state *demoState) unexpectedServerError() error {
 	default:
 		return nil
 	}
+}
+
+type Operator = authority.Simple
+
+func NewOperator(cfg OperatorConfig) (*Operator, error) {
+	validity, err := cfg.ParseValidity()
+	if err != nil {
+		return nil, err
+	}
+	return authority.NewSimple(authority.CAConfig{
+		CN:       cfg.CN,
+		CertFile: cfg.CertFile,
+		Validity: validity,
+	})
+}
+
+func CreateServer(certFile, keyFile, caCertFile string) (*http.Server, error) {
+	return sharedserver.NewFileMTLS(sharedserver.FileMTLSConfig{
+		CertificateFile: certFile,
+		PrivateKeyFile:  keyFile,
+		ClientCAFile:    caCertFile,
+	})
+}
+
+func CreateClient(caCertFile, clientCertFile, clientKeyFile string) (*http.Client, error) {
+	return sharedclient.NewMTLSFromFiles(sharedclient.FileMTLSConfig{
+		CACertFile:      caCertFile,
+		CertificateFile: clientCertFile,
+		PrivateKeyFile:  clientKeyFile,
+	})
 }

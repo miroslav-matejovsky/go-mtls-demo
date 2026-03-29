@@ -39,7 +39,7 @@ No linter is configured. No CI/CD pipeline exists.
 
 ## Architecture
 
-`internal/pki` is the shared certificate package. Shared runtime construction now lives in `internal/authority`, `internal/client`, `internal/server`, and `internal/tpm`, while the seven demo packages under `internal/scenarios/` remain the orchestration layer. The first four (`tlsmem`, `mtlsmem`, `tlsfiles`, `mtlsfiles`) still expose the same four-file layout (`server.go`, `client.go`, `demo.go`, `config.go`), but `server.go` and `client.go` are now thin adapters over the shared packages. The enterprise packages (`mtlsenterprise`, `mtlsenterprisetpm`) and `mtlstpm` extend this with additional files (`operator.go`, `step*.go`), where `operator.go` now adapts into the shared authority package:
+`internal/pki` is the shared certificate package. Shared runtime construction now lives in `internal/authority`, `internal/client`, `internal/server`, and `internal/tpm`, while the seven demo packages under `internal/scenarios/` remain the orchestration layer. Scenario-local adapter helpers (`NewOperator`, `CreateClient`, `CreateServer`) now live inside each scenario's `demo.go`, with `config.go` and `step*.go` files holding scenario-specific config and flow:
 
 ```
 internal/
@@ -59,14 +59,14 @@ internal/
     mtlstpm/     – mutual TLS,    server: files in certs/mtlstpm/; client: Windows cert store + TPM (Windows only)
 ```
 
-Each demo package has the same four-file structure:
+Each demo package keeps the same high-level responsibilities, but the constructor adapters now live in `demo.go`:
 
 | File        | Role |
 |-------------|------|
 
-| `server.go` | `CreateServer(...)` — scenario-local adapter that builds a TLS server through `internal/server` |
-| `client.go` | `CreateClient(...)` — scenario-local adapter that builds an `http.Client` through `internal/client` |
-| `demo.go`   | `RunDemo()` — orchestrates the full flow with narrative step output |
+| `demo.go`   | `RunDemo()` plus scenario-local `NewOperator` / `CreateClient` / `CreateServer` helpers |
+| `config.go` | Scenario-specific config structs and TOML loaders |
+| `step*.go`  | Scenario step orchestration for the larger demos |
 
 `cmd/main.go` is a thin dispatcher: it reads `os.Args[1]` (`tlsmem`, `mtlsmem`, `tlsfiles`, `mtlsfiles`, `mtlsenterprise`, `mtlsenterprisetpm`, or `mtlstpm`) and calls the appropriate `RunDemo()`. No arg → usage error; unknown arg → error. No default. `mtlsenterprisetpm` is dispatched via `cmd/mtlsenterprisetpm_windows.go` (calls `mtlsenterprisetpm.RunDemo()`) / `cmd/mtlsenterprisetpm_other.go` (returns a "Windows only" error). `mtlstpm` is dispatched via `cmd/mtlstpm_windows.go` (calls `mtlstpm.RunDemo()`) / `cmd/mtlstpm_other.go` (returns a "Windows only" error) to keep build constraints out of `main.go`.
 
@@ -108,11 +108,11 @@ Each demo package has the same four-file structure:
 
 **`internal/tpm` package.** Windows-only shared helpers for TPM detection, `CurrentUser\My` inspection, provider selection, key generation, certificate import, and runtime signer recovery.
 
-**`internal/authority` package.** Shared simple and enterprise CA helpers used by scenario-local `operator.go` adapters.
+**`internal/authority` package.** Shared simple and enterprise CA helpers used by scenario-local `NewOperator` helpers defined in `demo.go`.
 
-**`internal/client` package.** Shared TLS client constructors for memory-backed, file-backed, and signer-backed identities.
+**`internal/client` package.** Shared TLS client constructors for memory-backed, file-backed, and signer-backed identities, called from scenario-local `CreateClient` helpers in `demo.go`.
 
-**`internal/server` package.** Shared TLS server constructors for memory-backed and file-backed scenarios, with optional default demo handlers.
+**`internal/server` package.** Shared TLS server constructors for memory-backed and file-backed scenarios, with optional default demo handlers, called from scenario-local `CreateServer` helpers in `demo.go`.
 
 **`internal/pwsh` package.** Wraps `exec.Command("powershell", ...)` for script execution such as cleanup helpers. No build constraint needed — it just invokes the `powershell` binary.
 

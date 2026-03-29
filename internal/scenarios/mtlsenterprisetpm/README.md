@@ -39,10 +39,7 @@ go run ./cmd/ mtlsenterprisetpm
 ```
 internal/scenarios/mtlsenterprisetpm/
 ├── config.go    — TOML config types and loaders
-├── operator.go  — Scenario-local adapter to shared enterprise authority helpers
-├── server.go    — Scenario-local adapter to shared file-backed mTLS server helpers
-├── client.go    — Scenario-local adapter to shared signer-backed mTLS client helpers
-├── demo.go      — Orchestrator, demoState, resource cleanup
+├── demo.go      — Orchestrator, demoState, scenario-local adapter helpers, resource cleanup
 ├── step1.go     — Create Root CA
 ├── step2.go     — Create Intermediate CA
 ├── step3.go     — Generate server cert

@@ -11,6 +11,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/authority"
+	sharedclient "github.com/miroslav-matejovsky/go-mtls-demo/internal/client"
+	sharedserver "github.com/miroslav-matejovsky/go-mtls-demo/internal/server"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
 )
 
@@ -141,4 +144,48 @@ func closeDemoResources(state *demoState) error {
 		state.store = nil
 	}
 	return nil
+}
+
+type Operator = authority.Enterprise
+
+func NewOperator(cfg OperatorConfig) (*Operator, error) {
+	rootValidity, err := cfg.RootCA.ParseValidity()
+	if err != nil {
+		return nil, err
+	}
+	intValidity, err := cfg.IntermediateCA.ParseValidity()
+	if err != nil {
+		return nil, err
+	}
+	return authority.NewEnterprise(authority.EnterpriseConfig{
+		RootCA: authority.CAConfig{
+			CN:       cfg.RootCA.CN,
+			CertFile: cfg.RootCA.CertFile,
+			Validity: rootValidity,
+		},
+		IntermediateCA: authority.CAConfig{
+			CN:       cfg.IntermediateCA.CN,
+			CertFile: cfg.IntermediateCA.CertFile,
+			Validity: intValidity,
+		},
+	})
+}
+
+func CreateServer(chainFile, keyFile, rootCertFile string) (*http.Server, error) {
+	return sharedserver.NewFileMTLS(sharedserver.FileMTLSConfig{
+		CertificateFile: chainFile,
+		PrivateKeyFile:  keyFile,
+		ClientCAFile:    rootCertFile,
+	})
+}
+
+func CreateClient(rootCert *x509.Certificate, intermediateCert *x509.Certificate, key crypto.Signer, clientCert *x509.Certificate) (*http.Client, error) {
+	return sharedclient.NewMTLSWithSigner(sharedclient.SignerMTLSConfig{
+		CACert:     rootCert,
+		PrivateKey: key,
+		CertificateChain: []*x509.Certificate{
+			clientCert,
+			intermediateCert,
+		},
+	})
 }

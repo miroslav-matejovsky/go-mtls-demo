@@ -11,6 +11,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/authority"
+	sharedclient "github.com/miroslav-matejovsky/go-mtls-demo/internal/client"
+	sharedserver "github.com/miroslav-matejovsky/go-mtls-demo/internal/server"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
 )
 
@@ -133,4 +136,34 @@ func closeDemoResources(state *demoState) error {
 		state.store = nil
 	}
 	return nil
+}
+
+type Operator = authority.Simple
+
+func NewOperator(cfg OperatorConfig) (*Operator, error) {
+	validity, err := cfg.ParseValidity()
+	if err != nil {
+		return nil, err
+	}
+	return authority.NewSimple(authority.CAConfig{
+		CN:       cfg.CN,
+		CertFile: cfg.CertFile,
+		Validity: validity,
+	})
+}
+
+func CreateServer(certFile, keyFile, caCertFile string) (*http.Server, error) {
+	return sharedserver.NewFileMTLS(sharedserver.FileMTLSConfig{
+		CertificateFile: certFile,
+		PrivateKeyFile:  keyFile,
+		ClientCAFile:    caCertFile,
+	})
+}
+
+func CreateClient(caCert *x509.Certificate, key crypto.Signer, clientCert *x509.Certificate) (*http.Client, error) {
+	return sharedclient.NewMTLSWithSigner(sharedclient.SignerMTLSConfig{
+		CACert:           caCert,
+		PrivateKey:       key,
+		CertificateChain: []*x509.Certificate{clientCert},
+	})
 }

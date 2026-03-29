@@ -3,9 +3,12 @@ package mtlsmem
 import (
 	"crypto/ecdsa"
 	"crypto/x509"
+	"net/http"
 	"net/http/httptest"
 
+	sharedclient "github.com/miroslav-matejovsky/go-mtls-demo/internal/client"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
+	sharedserver "github.com/miroslav-matejovsky/go-mtls-demo/internal/server"
 )
 
 func RunDemo() error {
@@ -49,4 +52,20 @@ type demoState struct {
 	clientKeyPEM     []byte
 	server           *httptest.Server
 	serverURL        string
+}
+
+func CreateServer(certPem, privateKeyPem []byte, caCert *x509.Certificate) (*httptest.Server, error) {
+	return sharedserver.NewMemoryMTLS(sharedserver.MemoryMTLSConfig{
+		CertificatePEM: certPem,
+		PrivateKeyPEM:  privateKeyPem,
+		ClientCA:       caCert,
+	})
+}
+
+func CreateClient(ca *x509.Certificate, clientCertPem, clientKeyPem []byte) (*http.Client, error) {
+	return sharedclient.NewMTLSFromMemory(sharedclient.MemoryMTLSConfig{
+		CACert:         ca,
+		CertificatePEM: clientCertPem,
+		PrivateKeyPEM:  clientKeyPem,
+	})
 }
