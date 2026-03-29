@@ -25,24 +25,24 @@ func step1GenerateCertificates(state *demoState, opCfg OperatorConfig, serverCfg
 	if err != nil {
 		return err
 	}
-	if err := operator.DistributeCA(serverCfg.CACertFile); err != nil {
+	if err := operator.DistributeTrustAnchor(serverCfg.CACertFile); err != nil {
 		return fmt.Errorf("error distributing CA certificate to server: %w", err)
 	}
-	if err := operator.DistributeCA(clientCfg.CACertFile); err != nil {
+	if err := operator.DistributeTrustAnchor(clientCfg.CACertFile); err != nil {
 		return fmt.Errorf("error distributing CA certificate to client: %w", err)
 	}
 
 	state.operator = operator
 	state.validity = validity
 
-	pki.PrintCertificateInfo(operator.CACert())
+	pki.PrintCertificateInfo(operator.TrustAnchor())
 	fmt.Printf("  [OPERATOR] CA Certificate → %s\n", opCfg.CertFile)
 	fmt.Printf("  [OPERATOR] Distributed to server → %s\n", serverCfg.CACertFile)
 	fmt.Printf("  [OPERATOR] Distributed to client → %s\n", clientCfg.CACertFile)
 	fmt.Println("  [OPERATOR] Private key stays on the CA machine — NOT written to disk here.")
 	fmt.Println()
 
-	serverCert, serverPrivateKey, err := operator.SignCert(serverCfg.CN)
+	serverCert, serverPrivateKey, err := operator.SignServerCert(serverCfg.CN, nil)
 	if err != nil {
 		return fmt.Errorf("error creating server certificate: %w", err)
 	}
@@ -62,7 +62,7 @@ func step1GenerateCertificates(state *demoState, opCfg OperatorConfig, serverCfg
 	fmt.Printf("  [SERVER] Private key  → %s\n", serverCfg.KeyFile)
 	fmt.Println()
 
-	clientCert, clientPrivateKey, err := operator.SignCert(clientCfg.CN)
+	clientCert, clientPrivateKey, err := operator.SignClientCert(clientCfg.CN)
 	if err != nil {
 		return fmt.Errorf("error creating client certificate: %w", err)
 	}

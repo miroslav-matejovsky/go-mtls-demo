@@ -97,7 +97,7 @@ func (state *demoState) unexpectedServerError() error {
 	}
 }
 
-type Operator = authority.Simple
+type Operator = authority.Authority
 
 func NewOperator(cfg OperatorConfig) (*Operator, error) {
 	validity, err := cfg.ParseValidity()

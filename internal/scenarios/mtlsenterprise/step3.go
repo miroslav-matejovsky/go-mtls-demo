@@ -21,13 +21,13 @@ func step3GenerateServerCert(state *demoState, serverCfg ServerConfig) error {
 		return fmt.Errorf("error marshaling server key: %w", err)
 	}
 
-	if err := state.operator.WriteServerChain(serverCfg.ChainFile, serverCert); err != nil {
+	if err := state.operator.WriteChain(serverCfg.ChainFile, serverCert); err != nil {
 		return fmt.Errorf("error writing server chain bundle: %w", err)
 	}
 	if err := pki.WriteKey(serverCfg.KeyFile, serverKeyBytes); err != nil {
 		return fmt.Errorf("error writing server key: %w", err)
 	}
-	if err := state.operator.DistributeRootCA(serverCfg.RootCertFile); err != nil {
+	if err := state.operator.DistributeTrustAnchor(serverCfg.RootCertFile); err != nil {
 		return fmt.Errorf("error distributing root CA to server: %w", err)
 	}
 

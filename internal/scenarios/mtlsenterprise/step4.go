@@ -21,13 +21,13 @@ func step4GenerateClientCert(state *demoState, clientCfg ClientConfig) error {
 		return fmt.Errorf("error marshaling client key: %w", err)
 	}
 
-	if err := state.operator.WriteClientChain(clientCfg.ChainFile, clientCert); err != nil {
+	if err := state.operator.WriteChain(clientCfg.ChainFile, clientCert); err != nil {
 		return fmt.Errorf("error writing client chain bundle: %w", err)
 	}
 	if err := pki.WriteKey(clientCfg.KeyFile, clientKeyBytes); err != nil {
 		return fmt.Errorf("error writing client key: %w", err)
 	}
-	if err := state.operator.DistributeRootCA(clientCfg.RootCertFile); err != nil {
+	if err := state.operator.DistributeTrustAnchor(clientCfg.RootCertFile); err != nil {
 		return fmt.Errorf("error distributing root CA to client: %w", err)
 	}
 

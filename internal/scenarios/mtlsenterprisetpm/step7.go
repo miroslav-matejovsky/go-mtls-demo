@@ -39,7 +39,7 @@ func step7StartServerAndRequest(state *demoState, serverCfg ServerConfig) error 
 	fmt.Printf("[SERVER] Listening on %s\n", state.serverURL)
 	fmt.Println()
 
-	client, err := CreateClient(state.operator.RootCert(), state.operator.IntermediateCert(), state.storeKey, state.storedClientCert)
+	client, err := CreateClient(state.operator.TrustAnchor(), state.operator.Intermediate(), state.storeKey, state.storedClientCert)
 	if err != nil {
 		return fmt.Errorf("error creating client: %w", err)
 	}

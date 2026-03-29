@@ -35,7 +35,7 @@ func step6DemonstrateUntrustedClient(state *demoState, opCfg OperatorConfig, unt
 	// The untrusted client still uses the trusted CA cert to verify the server —
 	// it's rejected because its OWN cert is from a different CA, not because it
 	// can't reach the server.
-	untrustedClient, err := CreateClient(state.operator.CACert(), untrustedKey, untrustedCert)
+	untrustedClient, err := CreateClient(state.operator.TrustAnchor(), untrustedKey, untrustedCert)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client: %w", err)
 	}

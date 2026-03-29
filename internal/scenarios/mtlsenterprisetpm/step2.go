@@ -15,8 +15,8 @@ func step2CreateIntermediateCA(state *demoState) error {
 	fmt.Println("The intermediate CA is the operational issuer. MaxPathLen: 0 prevents sub-intermediates.")
 	fmt.Println()
 
-	intCert := state.operator.IntermediateCert()
-	rootCert := state.operator.RootCert()
+	intCert := state.operator.Intermediate()
+	rootCert := state.operator.TrustAnchor()
 
 	fmt.Println("[OPERATOR] Intermediate CA certificate:")
 	pki.PrintCertificateInfo(intCert)

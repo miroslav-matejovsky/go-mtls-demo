@@ -35,7 +35,7 @@ func step4GenerateUntrustedClient(state *demoState, untrustedCfg UntrustedClient
 	}
 	// The untrusted client still needs the server's CA cert to verify the server during
 	// the handshake — it's untrusted because its OWN cert is signed by a different CA.
-	if err := state.operator.DistributeCA(untrustedCfg.CACertFile); err != nil {
+	if err := state.operator.DistributeTrustAnchor(untrustedCfg.CACertFile); err != nil {
 		return fmt.Errorf("error writing trusted CA cert to untrusted directory: %w", err)
 	}
 

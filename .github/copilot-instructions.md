@@ -110,7 +110,7 @@ Each demo package keeps the same high-level responsibilities, but the constructo
 
 **`internal/tpm` package.** Windows-only shared helpers for TPM detection, `CurrentUser\My` inspection, provider selection, key generation, certificate import, and runtime signer recovery.
 
-**`internal/authority` package.** Shared simple and enterprise CA helpers used by scenario-local `NewOperator` helpers defined in `demo.go`.
+**`internal/authority` package.** Single `Authority` type with two constructors: `NewSimple(cfg)` for single-tier PKI and `NewEnterprise(cfg)` for two-tier PKI (root → intermediate → leaf). Both return `*Authority` with the same unified API: `TrustAnchor()`, `Intermediate()` (nil for single-tier), `DistributeTrustAnchor(path)`, `SignServerCert(cn, dnsNames)`, `SignClientCert(cn)`, `SignClientCertForKey(pub, cn)`, `WriteChain(path, leaf)`. All scenarios use `type Operator = authority.Authority` and `NewOperator()` in `demo.go`. Enterprise scenarios call `Intermediate()` for chain building and cert store operations; simple scenarios get `nil` from `Intermediate()` and `WriteChain` writes a leaf-only file.
 
 **`internal/client` package.** Shared TLS client constructors: `NewTLSFromMemory` for one-way TLS, `NewMTLSWithSigner` for mTLS (accepts any `crypto.Signer` — works for in-memory, software KSP, and TPM-backed keys), and `NewMTLSFromFiles` / `NewTLSFromFiles` for file-backed scenarios. Called from scenario-local `CreateClient` helpers in `demo.go`.
 

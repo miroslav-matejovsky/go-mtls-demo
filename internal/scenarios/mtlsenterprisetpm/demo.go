@@ -146,7 +146,7 @@ func closeDemoResources(state *demoState) error {
 	return nil
 }
 
-type Operator = authority.Enterprise
+type Operator = authority.Authority
 
 func NewOperator(cfg OperatorConfig) (*Operator, error) {
 	rootValidity, err := cfg.RootCA.ParseValidity()

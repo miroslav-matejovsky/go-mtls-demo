@@ -19,7 +19,7 @@ func step1CreateRootCA(state *demoState, opCfg OperatorConfig) error {
 	state.operator = operator
 
 	fmt.Println("[OPERATOR] Root CA certificate:")
-	pki.PrintCertificateInfo(operator.RootCert())
+	pki.PrintCertificateInfo(operator.TrustAnchor())
 	fmt.Printf("  [OPERATOR] Root CA cert → %s\n", opCfg.RootCA.CertFile)
 	fmt.Println("  [OPERATOR] Root CA key stays in memory — never written to disk.")
 	fmt.Println()

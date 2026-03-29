@@ -18,13 +18,13 @@ func step1GenerateCA(state *demoState, opCfg OperatorConfig, clientCfg ClientCon
 	if err != nil {
 		return fmt.Errorf("error creating operator: %w", err)
 	}
-	if err := operator.DistributeCA(clientCfg.CACertFile); err != nil {
+	if err := operator.DistributeTrustAnchor(clientCfg.CACertFile); err != nil {
 		return fmt.Errorf("error distributing CA certificate to client: %w", err)
 	}
 
 	state.operator = operator
 
-	pki.PrintCertificateInfo(operator.CACert())
+	pki.PrintCertificateInfo(operator.TrustAnchor())
 	fmt.Printf("  [OPERATOR] CA Certificate → %s\n", opCfg.CertFile)
 	fmt.Printf("  [OPERATOR] Distributed to client → %s\n", clientCfg.CACertFile)
 	fmt.Println()

@@ -17,7 +17,7 @@ func step6ImportClientCert(state *demoState, clientCfg ClientConfig) error {
 	fmt.Println()
 
 	// StoreWithDisposition: second arg is the CA cert (intermediate, the direct issuer)
-	if err := state.store.StoreCertificate(state.clientCert, state.operator.IntermediateCert()); err != nil {
+	if err := state.store.StoreCertificate(state.clientCert, state.operator.Intermediate()); err != nil {
 		return fmt.Errorf("error storing client certificate: %w", err)
 	}
 	fmt.Printf("  [CLIENT] Certificate stored in CurrentUser\\My\n")

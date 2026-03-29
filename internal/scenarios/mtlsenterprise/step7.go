@@ -50,7 +50,7 @@ func step7UntrustedRequest(state *demoState, untrustedCfg UntrustedClientConfig)
 		return fmt.Errorf("error writing untrusted client key: %w", err)
 	}
 	// The untrusted client still needs the TRUSTED server's root CA to verify the server cert
-	if err := state.operator.DistributeRootCA(untrustedCfg.RootCertFile); err != nil {
+	if err := state.operator.DistributeTrustAnchor(untrustedCfg.RootCertFile); err != nil {
 		return fmt.Errorf("error writing trusted root CA to untrusted directory: %w", err)
 	}
 
