@@ -50,7 +50,7 @@ tlsCert := tls.Certificate{
 }
 ```
 
-This is structurally identical to what `mtlstpm/client.go` does today. The interface abstraction means the same `tls.Certificate` struct works whether the key is in a file, in the software KSP, or in a TPM.
+This is structurally identical to what `internal/client.NewMTLSWithSigner` does today. The interface abstraction means the same `tls.Certificate` struct works whether the key is in a file, in the software KSP, or in a TPM.
 
 ### When to use each
 

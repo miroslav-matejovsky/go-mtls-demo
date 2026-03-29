@@ -2,7 +2,7 @@
 
 > **Parent:** [AGENTS.md](../AGENTS.md) — mTLS concepts and architecture
 > **Layer:** Domain
-> **Go package:** `internal/cert` · `github.com/google/certtostore`
+> **Go package:** `internal/pki` · `github.com/google/certtostore`
 
 > **Audience:** AI coding agents working in a production Go codebase.
 > This document covers the certificate domain: types, fields, chain bundles,

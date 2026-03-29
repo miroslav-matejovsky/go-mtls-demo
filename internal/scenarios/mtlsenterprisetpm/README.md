@@ -6,7 +6,7 @@ Windows-only demo combining **enterprise PKI topology** (Root CA → Intermediat
 
 | Feature | Source |
 |---------|--------|
-| 3-tier certificate hierarchy | `internal/cert.CreateRootCA` → `SignIntermediateFunc` → `ProfiledSignerFunc` |
+| 3-tier certificate hierarchy | `internal/pki.CreateRootCA` → `SignIntermediateFunc` → `ProfiledSignerFunc` |
 | Role-specific EKU | ServerAuth for server, ClientAuth for client |
 | SKID/AKID chain linkage | Verified in step 2 and summarised in step 9 |
 | TPM-backed client key | `certtostore.OpenWinCertStoreCurrentUser` + `Generate` |
@@ -39,9 +39,9 @@ go run ./cmd/ mtlsenterprisetpm
 ```
 internal/scenarios/mtlsenterprisetpm/
 ├── config.go    — TOML config types and loaders
-├── operator.go  — Enterprise PKI operator (root + intermediate CA)
-├── server.go    — File-backed mTLS server
-├── client.go    — TPM-backed mTLS client with chain (leaf + intermediate)
+├── operator.go  — Scenario-local adapter to shared enterprise authority helpers
+├── server.go    — Scenario-local adapter to shared file-backed mTLS server helpers
+├── client.go    — Scenario-local adapter to shared signer-backed mTLS client helpers
 ├── demo.go      — Orchestrator, demoState, resource cleanup
 ├── step1.go     — Create Root CA
 ├── step2.go     — Create Intermediate CA

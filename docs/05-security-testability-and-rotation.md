@@ -84,7 +84,7 @@ Use this checklist when preparing an mTLS implementation for production. Items m
 
 ### Certificate generation
 
-- ✅ Use ECDSA P-256 or stronger for all key pairs (`internal/cert/cert.go`)
+- ✅ Use ECDSA P-256 or stronger for all key pairs (`internal/pki/simple.go` and `internal/pki/enterprise.go`)
 - ✅ Generate cryptographically random serial numbers (`randomSerial()` in `cert.go`)
 - ✅ Set Subject Key Identifier on all certificates (`computeSKID()` in `cert.go`)
 - ✅ Set Authority Key Identifier on leaf certificates pointing to the issuing CA
@@ -96,7 +96,7 @@ Use this checklist when preparing an mTLS implementation for production. Items m
 
 - ✅ Restrict private key file permissions to owner-only: 0600 (`WriteKey()` in `cert.go`)
 - ✅ Support TPM-backed non-exportable client keys (`mtlstpm` scenario)
-- ✅ Use `crypto.Signer` interface for key abstraction (`mtlstpm/client.go`)
+- ✅ Use `crypto.Signer` interface for key abstraction (`internal/client.NewMTLSWithSigner`)
 - ⬚ Restrict cert store private key ACLs to the service account identity
 - 📄 Support non-exportable server keys via Windows cert store (proposed `mtlstpmserverstore`)
 - 📄 Support Azure Key Vault for cloud-hosted key material (proposed `mtlsazurekv`)

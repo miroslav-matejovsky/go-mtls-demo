@@ -1,31 +1,14 @@
 package tlsmem
 
 import (
-	"crypto/tls"
-	"fmt"
-	"net/http"
 	"net/http/httptest"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
+	sharedserver "github.com/miroslav-matejovsky/go-mtls-demo/internal/server"
 )
 
 func CreateServer(certPem, privateKeyPem []byte) (*httptest.Server, error) {
-	serverCert, err := tls.X509KeyPair(certPem, privateKeyPem)
-	if err != nil {
-		return nil, fmt.Errorf("error creating TLS certificate: %w", err)
-	}
-
-	serverTLSConf := &tls.Config{
-		MinVersion:   tls.VersionTLS12,
-		Certificates: []tls.Certificate{serverCert},
-	}
-
-	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tlsState := r.TLS
-		fmt.Printf("[SERVER] Received request over TLS — version: %s, cipher suite: %s\n",
-			pki.TLSVersionName(tlsState.Version), tls.CipherSuiteName(tlsState.CipherSuite))
-		fmt.Fprintln(w, "success!")
-	}))
-	server.TLS = serverTLSConf
-	return server, nil
+	return sharedserver.NewMemoryTLS(sharedserver.MemoryTLSConfig{
+		CertificatePEM: certPem,
+		PrivateKeyPEM:  privateKeyPem,
+	})
 }

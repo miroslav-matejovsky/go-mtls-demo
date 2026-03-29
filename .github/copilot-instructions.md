@@ -39,12 +39,15 @@ No linter is configured. No CI/CD pipeline exists.
 
 ## Architecture
 
-`internal/cert` is the shared certificate package. The seven demo packages live under `internal/scenarios/`. The first four (`tlsmem`, `mtlsmem`, `tlsfiles`, `mtlsfiles`) share the same four-file layout (`server.go`, `client.go`, `demo.go`, `config.go`). The enterprise packages (`mtlsenterprise`, `mtlsenterprisetpm`) and `mtlstpm` extend this with additional files (`operator.go`, `step*.go`):
+`internal/pki` is the shared certificate package. Shared runtime construction now lives in `internal/authority`, `internal/client`, `internal/server`, and `internal/tpm`, while the seven demo packages under `internal/scenarios/` remain the orchestration layer. The first four (`tlsmem`, `mtlsmem`, `tlsfiles`, `mtlsfiles`) still expose the same four-file layout (`server.go`, `client.go`, `demo.go`, `config.go`), but `server.go` and `client.go` are now thin adapters over the shared packages. The enterprise packages (`mtlsenterprise`, `mtlsenterprisetpm`) and `mtlstpm` extend this with additional files (`operator.go`, `step*.go`), where `operator.go` now adapts into the shared authority package:
 
 ```
 internal/
-  cert/        – shared: CA + leaf cert generation, PrintCertificateInfo, TLSVersionName, WriteCert, WriteKey
+  pki/         – shared: CA + chain generation, PrintCertificateInfo, TLSVersionName, WriteCert, WriteKey, WriteChainBundle
+  authority/   – shared certificate-authority / issuer helpers for simple and enterprise PKI flows
+  client/      – shared TLS client builders for memory, file, and signer-backed identities
   pwsh/        – PowerShell process helpers used for cleanup scripts
+  server/      – shared TLS server builders for memory and file-backed scenarios
   tpm/         – shared Windows TPM + CurrentUser cert-store helpers
   scenarios/
     tlsmem/      – one-way TLS,   certs in memory
@@ -61,17 +64,17 @@ Each demo package has the same four-file structure:
 | File        | Role |
 |-------------|------|
 
-| `server.go` | `CreateServer(...)` — builds a TLS server: `*httptest.Server` (mem packages) or `*http.Server` (files/tpm packages) |
-| `client.go` | `CreateClient(...)` — builds an `http.Client` with the right TLS config |
+| `server.go` | `CreateServer(...)` — scenario-local adapter that builds a TLS server through `internal/server` |
+| `client.go` | `CreateClient(...)` — scenario-local adapter that builds an `http.Client` through `internal/client` |
 | `demo.go`   | `RunDemo()` — orchestrates the full flow with narrative step output |
 
 `cmd/main.go` is a thin dispatcher: it reads `os.Args[1]` (`tlsmem`, `mtlsmem`, `tlsfiles`, `mtlsfiles`, `mtlsenterprise`, `mtlsenterprisetpm`, or `mtlstpm`) and calls the appropriate `RunDemo()`. No arg → usage error; unknown arg → error. No default. `mtlsenterprisetpm` is dispatched via `cmd/mtlsenterprisetpm_windows.go` (calls `mtlsenterprisetpm.RunDemo()`) / `cmd/mtlsenterprisetpm_other.go` (returns a "Windows only" error). `mtlstpm` is dispatched via `cmd/mtlstpm_windows.go` (calls `mtlstpm.RunDemo()`) / `cmd/mtlstpm_other.go` (returns a "Windows only" error) to keep build constraints out of `main.go`.
 
 ## Key Conventions
 
-**`internal/cert` is the shared package.** `cert.CreateCA(cn, validity)`, `cert.CreateLeafCert(signLeaf, cn)`, `cert.PrintCertificateInfo`, and `cert.TLSVersionName` are the shared exports. All demo packages import it as `"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"` and call `cert.CreateCA(...)` etc. Certificates include SKID/AKID extensions and random serial numbers.
+**`internal/pki` is the shared certificate package.** `pki.CreateCA`, `pki.CreateRootCA`, `pki.CreateLeafCertAndKey`, `pki.GenerateLeafCertificateAndKey`, `pki.PrintCertificateInfo`, `pki.TLSVersionName`, `pki.WriteCert`, `pki.WriteKey`, and `pki.WriteChainBundle` are the core shared exports. Demo packages import it as `"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"`. Certificates include SKID/AKID extensions and random serial numbers.
 
-**`signerFunc` / `cert.SignerFunc` closure pattern.** `cert.CreateCA()` returns a `SignerFunc` — a closure that signs leaf certificates with the CA's private key without exposing the key itself. Always pass this function through; never expose the raw CA key outside `internal/cert`.
+**`signerFunc` / `pki.SignerFunc` closure pattern.** `pki.CreateCA()` returns a `SignerFunc` — a closure that signs leaf certificates with the CA's private key without exposing the key itself. Always pass this function through; never expose the raw CA key outside `internal/pki`.
 
 **`httptest` for mem-package servers.** In `tlsmem` and `mtlsmem`, use `httptest.NewUnstartedServer(handler)`, assign `server.TLS`, then call `server.StartTLS()`. Never call `server.Start()` — this project only exercises TLS paths.
 
@@ -101,9 +104,15 @@ Each demo package has the same four-file structure:
 
 **Tests are integration tests.** Each package (except `mtlstpm`) has one `TestDemo` that calls `RunDemo()` and expects no error. There are no unit tests or mocks. A passing test means the full TLS/mTLS handshake succeeded. `mtlstpm` has no test — TPM/Windows cert store operations cannot be mocked.
 
-**`mtlstpm` uses `certtostore` for the client key.** `certtostore.OpenWinCertStoreCurrentUser(provider, container, issuers, ...)` opens the store; `store.Generate(GenerateOpts{EC, 256})` creates the TPM-backed key; `store.StoreWithDisposition(cert, caCert, 3)` imports the signed cert (disposition 3 = CERT_STORE_ADD_REPLACE_EXISTING) — the second argument is the CA certificate (never `nil`; the library unconditionally dereferences it). At runtime, re-derive the key with `store.CertByCommonName(cn)` → `store.CertKey(ctx)` → pass the `*Key` (which implements `crypto.Signer`) as `tls.Certificate.PrivateKey`. The `mtlstpm/client.go::CreateClient` accepts `crypto.Signer`, so it works for both the TPM-backed key and the in-memory `*ecdsa.PrivateKey` used by the untrusted client step. No automatic cleanup — demo prints manual PowerShell commands at the end. `//go:build windows` on all `mtlstpm/*.go` files. Dispatch via `cmd/mtlstpm_windows.go` / `cmd/mtlstpm_other.go`.
+**`mtlstpm` uses `certtostore` for the client key.** `certtostore.OpenWinCertStoreCurrentUser(provider, container, issuers, ...)` opens the store; `store.Generate(GenerateOpts{EC, 256})` creates the TPM-backed key; `store.StoreWithDisposition(cert, caCert, 3)` imports the signed cert (disposition 3 = CERT_STORE_ADD_REPLACE_EXISTING) — the second argument is the CA certificate (never `nil`; the library unconditionally dereferences it). At runtime, re-derive the key with `store.CertByCommonName(cn)` → `store.CertKey(ctx)` → pass the `*Key` (which implements `crypto.Signer`) into `internal/client.NewMTLSWithSigner`. This also works for the in-memory `*ecdsa.PrivateKey` used by the untrusted client step. No automatic cleanup — demo prints manual PowerShell commands at the end. `//go:build windows` on all `mtlstpm/*.go` files. Dispatch via `cmd/mtlstpm_windows.go` / `cmd/mtlstpm_other.go`.
 
 **`internal/tpm` package.** Windows-only shared helpers for TPM detection, `CurrentUser\My` inspection, provider selection, key generation, certificate import, and runtime signer recovery.
+
+**`internal/authority` package.** Shared simple and enterprise CA helpers used by scenario-local `operator.go` adapters.
+
+**`internal/client` package.** Shared TLS client constructors for memory-backed, file-backed, and signer-backed identities.
+
+**`internal/server` package.** Shared TLS server constructors for memory-backed and file-backed scenarios, with optional default demo handlers.
 
 **`internal/pwsh` package.** Wraps `exec.Command("powershell", ...)` for script execution such as cleanup helpers. No build constraint needed — it just invokes the `powershell` binary.
 

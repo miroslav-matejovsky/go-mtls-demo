@@ -1,20 +1,14 @@
 package tlsmem
 
 import (
-	"crypto/tls"
 	"crypto/x509"
-	"encoding/pem"
 	"net/http"
+
+	sharedclient "github.com/miroslav-matejovsky/go-mtls-demo/internal/client"
 )
 
 func CreateClient(ca *x509.Certificate) (*http.Client, error) {
-	certpool := x509.NewCertPool()
-	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Raw})
-	certpool.AppendCertsFromPEM(caPEM)
-
-	clientTLSConf := &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: certpool}
-	client := &http.Client{
-		Transport: &http.Transport{TLSClientConfig: clientTLSConf},
-	}
-	return client, nil
+	return sharedclient.NewTLSFromMemory(sharedclient.MemoryTLSConfig{
+		CACert: ca,
+	})
 }

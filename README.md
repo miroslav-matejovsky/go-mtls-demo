@@ -26,6 +26,8 @@ mTLS (mutual)   Client ──── verify server cert ────► Server
 
 Use [docs/index.md](docs/index.md) as the main guide for how to read this repository as an implementation reference, from basic TLS through production-oriented mTLS patterns.
 
+Shared building blocks now live under `internal/authority`, `internal/client`, `internal/server`, `internal/pki`, and `internal/tpm`. The scenario packages under `internal/scenarios/` remain the orchestration layer and adapt their scenario-specific config and step flow onto those shared helpers.
+
 ## Running
 
 ```pwsh
