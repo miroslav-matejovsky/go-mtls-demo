@@ -47,6 +47,7 @@ The repo should keep teaching these testing rules:
 4. keep negative-path tests as first-class tests
 5. use temp directories for file-backed scenarios
 6. treat TPM or OS-store scenarios as Windows-specific integration paths
+7. use `crypto.Signer` to test the mTLS client path without TPM or Windows dependencies — a plain `*ecdsa.PrivateKey` stands in for any hardware-backed key, so `client.NewMTLSWithSigner` can be exercised in cross-platform tests
 
 A useful long-term rule for this repo is:
 
@@ -84,9 +85,9 @@ Use this checklist when preparing an mTLS implementation for production. Items m
 
 ### Certificate generation
 
-- ✅ Use ECDSA P-256 or stronger for all key pairs (`internal/cert/cert.go`)
-- ✅ Generate cryptographically random serial numbers (`randomSerial()` in `cert.go`)
-- ✅ Set Subject Key Identifier on all certificates (`computeSKID()` in `cert.go`)
+- ✅ Use ECDSA P-256 or stronger for all key pairs (`internal/pki/simple.go` and `internal/pki/enterprise.go`)
+- ✅ Generate cryptographically random serial numbers (`randomSerial()` in `pki.go`)
+- ✅ Set Subject Key Identifier on all certificates (`computeSKID()` in `pki.go`)
 - ✅ Set Authority Key Identifier on leaf certificates pointing to the issuing CA
 - ✅ Include DNS SANs for service FQDNs (`mtlsenterprise` and `mtlsenterprisetpm` scenarios)
 - ✅ Use separate EKU per role: `ServerAuth` only on server certs, `ClientAuth` only on client certs (`mtlsenterprise` and `mtlsenterprisetpm`)
@@ -94,9 +95,9 @@ Use this checklist when preparing an mTLS implementation for production. Items m
 
 ### Key protection
 
-- ✅ Restrict private key file permissions to owner-only: 0600 (`WriteKey()` in `cert.go`)
+- ✅ Restrict private key file permissions to owner-only: 0600 (`WriteKey()` in `pki.go`)
 - ✅ Support TPM-backed non-exportable client keys (`mtlstpm` scenario)
-- ✅ Use `crypto.Signer` interface for key abstraction (`mtlstpm/client.go`)
+- ✅ Use `crypto.Signer` interface for key abstraction (`internal/client.NewMTLSWithSigner`)
 - ⬚ Restrict cert store private key ACLs to the service account identity
 - 📄 Support non-exportable server keys via Windows cert store (proposed `mtlstpmserverstore`)
 - 📄 Support Azure Key Vault for cloud-hosted key material (proposed `mtlsazurekv`)

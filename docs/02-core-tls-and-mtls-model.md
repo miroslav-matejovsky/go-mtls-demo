@@ -76,7 +76,7 @@ One of the best lessons in this repo is that TLS code gets cleaner when you sepa
 
 That is why the repo keeps:
 
-- shared certificate helpers in `internal/cert`
+- shared certificate helpers in `internal/pki`
 - per-scenario `CreateServer(...)` and `CreateClient(...)` constructors
 - `RunDemo()` as orchestration
 

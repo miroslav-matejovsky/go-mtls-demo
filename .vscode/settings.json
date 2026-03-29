@@ -83,13 +83,18 @@
     }
   ],
   "cSpell.words": [
+    "AKID",
     "certpool",
     "certtostore",
+    "matejovsky",
+    "miroslav",
     "mtlsenterprise",
     "mtlsenterprisetpm",
     "mtlsfiles",
     "mtlsmem",
     "mtlstpm",
+    "ncrypt",
+    "Tbsi",
     "tlsfiles",
     "tlsmem",
     "wincert"

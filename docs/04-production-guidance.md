@@ -27,7 +27,7 @@ Why this matters:
 - compromise blast radius is smaller
 - policy and trust management become cleaner
 
-The `mtlsenterprise` and `mtlsenterprisetpm` scenarios implement this model. They use `cert.CreateRootCA` → `SignIntermediateFunc` → `ProfiledSignerFunc` to build the full hierarchy, with role-specific EKU (ServerAuth / ClientAuth) and DNS SANs on server certificates. Chain bundles (leaf + intermediate) are written to disk for TLS presentation.
+The `mtlsenterprise` and `mtlsenterprisetpm` scenarios implement this model. They use `pki.CreateRootCA` → `SignIntermediateFunc` → `ProfiledSignerFunc` to build the full hierarchy, with role-specific EKU (ServerAuth / ClientAuth) and DNS SANs on server certificates. Chain bundles (leaf + intermediate) are written to disk for TLS presentation.
 
 The earlier scenarios (`tlsmem`, `mtlsmem`, `tlsfiles`, `mtlsfiles`, `mtlstpm`) use a single CA for simplicity. That is a useful teaching simplification, not the PKI topology to copy unchanged into production — use `mtlsenterprise` or `mtlsenterprisetpm` as the production PKI reference.
 
@@ -220,7 +220,7 @@ Windows CNG (Cryptography Next Generation) uses key storage providers (KSPs) to 
 | **Microsoft Software Key Storage Provider** | Software (NCrypt) | Configurable — default non-exportable | No |
 | Legacy CSPs (e.g. Microsoft Strong Cryptographic Provider) | Software (CryptoAPI) | Configurable | No |
 
-**The repo's `mtlstpm` demo auto-detects between the first two.** It prefers the TPM provider when available and falls back to the software KSP. This is controlled by `internal/pwsh.CheckTPM()` and the `provider_override` config field. See `internal/mtlstpm/demo.go` for the detection logic.
+**The repo's `mtlstpm` demo auto-detects between the first two.** It prefers the TPM provider when available and falls back to the software KSP. This is controlled by `internal/tpm.CheckTPM()` and the `provider_override` config field. See `internal/scenarios/mtlstpm/step2.go` for the detection logic.
 
 Legacy CSPs are not recommended for new implementations. They use older CryptoAPI interfaces and do not support modern elliptic-curve key types.
 

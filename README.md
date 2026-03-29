@@ -12,32 +12,21 @@ mTLS (mutual)   Client ──── verify server cert ────► Server
 
 ## Scenarios
 
-| Package                                   | Mode        | Certs                                                           |
-| ----------------------------------------- | ----------- | --------------------------------------------------------------- |
-| [tlsmem](internal/tlsmem/README.md)       | One-way TLS | In memory                                                       |
-| [mtlsmem](internal/mtlsmem/README.md)     | Mutual TLS  | In memory                                                       |
-| [tlsfiles](internal/tlsfiles/README.md)   | One-way TLS | Written to `certs/tlsfiles/`                                    |
-| [mtlsfiles](internal/mtlsfiles/README.md) | Mutual TLS  | Written to `certs/mtlsfiles/`                                   |
-| [mtlsenterprise](internal/mtlsenterprise/README.md) | Mutual TLS  | Intermediate CA, role-specific EKU, DNS SANs, chain bundles     |
-| [mtlsenterprisetpm](internal/mtlsenterprisetpm/README.md) | Mutual TLS  | Enterprise PKI + client key in Windows cert store + TPM (Windows only) |
-| [mtlstpm](internal/mtlstpm/README.md)     | Mutual TLS  | Server: files · Client: Windows cert store + TPM (Windows only) |
+| Package                                                             | Mode        | Certs                                                                  |
+| ------------------------------------------------------------------- | ----------- | ---------------------------------------------------------------------- |
+| [tlsmem](internal/scenarios/tlsmem/README.md)                       | One-way TLS | In memory                                                              |
+| [mtlsmem](internal/scenarios/mtlsmem/README.md)                     | Mutual TLS  | In memory                                                              |
+| [tlsfiles](internal/scenarios/tlsfiles/README.md)                   | One-way TLS | Written to `certs/tlsfiles/`                                           |
+| [mtlsfiles](internal/scenarios/mtlsfiles/README.md)                 | Mutual TLS  | Written to `certs/mtlsfiles/`                                          |
+| [mtlsenterprise](internal/scenarios/mtlsenterprise/README.md)       | Mutual TLS  | Intermediate CA, role-specific EKU, DNS SANs, chain bundles            |
+| [mtlstpm](internal/scenarios/mtlstpm/README.md)                     | Mutual TLS  | Server: files · Client: Windows cert store + TPM (Windows only)        |
+| [mtlsenterprisetpm](internal/scenarios/mtlsenterprisetpm/README.md) | Mutual TLS  | Enterprise PKI + client key in Windows cert store + TPM (Windows only) |
 
 ## Guidance
 
 Use [docs/index.md](docs/index.md) as the main guide for how to read this repository as an implementation reference, from basic TLS through production-oriented mTLS patterns.
 
-## Agent Guides for Production Implementations
-
-The [docs/agents/](docs/agents/) folder contains standalone AGENTS.md files that can be copied into any production Go repository to guide AI coding agents on implementing enterprise-grade mTLS:
-
-| Guide | Focus |
-| ----- | ----- |
-| [AGENTS.mtls.md](docs/agents/AGENTS.mtls.md) | Core mTLS concepts, PKI topology, security checklist |
-| [AGENTS.server.md](docs/agents/AGENTS.server.md) | Server-side mTLS implementation |
-| [AGENTS.client.md](docs/agents/AGENTS.client.md) | Client-side mTLS implementation |
-| [AGENTS.cli.md](docs/agents/AGENTS.cli.md) | CLI operator tool for PKI management |
-| [AGENTS.windows.md](docs/agents/AGENTS.windows.md) | Windows Server deployment |
-| [AGENTS.container.md](docs/agents/AGENTS.container.md) | Container deployment (Azure) |
+Shared building blocks now live under `internal/authority`, `internal/client`, `internal/server`, `internal/pki`, and `internal/tpm`. The scenario packages under `internal/scenarios/` remain the orchestration layer and adapt their scenario-specific config and step flow onto those shared helpers.
 
 ## Running
 
@@ -45,6 +34,30 @@ The [docs/agents/](docs/agents/) folder contains standalone AGENTS.md files that
 go run ./cmd/ <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlsenterprise|mtlsenterprisetpm|mtlstpm>
 .\scripts\run.ps1  <tlsmem|mtlsmem|tlsfiles|mtlsfiles|mtlsenterprise|mtlsenterprisetpm|mtlstpm>
 ```
+
+## Glossary
+
+| Abbreviation     | Meaning                                   | How it is used here                                                                                 |
+| ---------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| TLS              | Transport Layer Security                  | One-way TLS demos where the client verifies the server certificate                                  |
+| mTLS             | Mutual TLS                                | Demos where both client and server present and verify certificates                                  |
+| PKI              | Public Key Infrastructure                 | The certificate chain setup used across the demos, from simple local CAs to enterprise-style chains |
+| CA               | Certificate Authority                     | Issues the server and client certificates used in the demos                                         |
+| Root CA          | Top-level certificate authority           | Acts as the trust anchor for demo certificate chains                                                |
+| Intermediate CA  | Certificate authority signed by a root CA | Used in the enterprise-focused demos to model a more realistic chain                                |
+| leaf certificate | End-entity certificate                    | The actual server or client certificate presented during the TLS handshake                          |
+| EKU              | Extended Key Usage                        | Enterprise demos use it to separate server and client certificate purposes                          |
+| SAN              | Subject Alternative Name                  | Holds DNS names and identities checked during certificate validation                                |
+| SKID             | Subject Key Identifier                    | Included on generated certificates to help identify the subject key                                 |
+| AKID             | Authority Key Identifier                  | Included to link an issued certificate back to its issuer                                           |
+| TPM              | Trusted Platform Module                   | Used for Windows client key storage in the TPM-backed demos                                         |
+| TBSI             | TPM Base Services interface               | Windows `Tbsi_*` API family used to query TPM capabilities such as device version                   |
+| HSM              | Hardware Security Module                  | Mentioned as the broader hardware-backed key storage category related to TPM-backed keys            |
+| KSP              | Key Storage Provider                      | Windows provider used when creating or loading TPM/software-backed keys                             |
+| CNG              | Cryptography Next Generation              | The Windows cryptography platform behind the TPM and cert-store integrations                        |
+| NCrypt           | Windows CNG key API family                | The Windows key API layer used under provider-backed certificate operations                         |
+| PEM              | Privacy-Enhanced Mail                     | Text format used for certificate and key files in the in-memory and file-based demos                |
+| DER              | Distinguished Encoding Rules              | Binary X.509 encoding wrapped by PEM when certificates are written to files                         |
 
 ## References
 

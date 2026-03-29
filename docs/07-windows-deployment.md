@@ -50,7 +50,7 @@ tlsCert := tls.Certificate{
 }
 ```
 
-This is structurally identical to what `mtlstpm/client.go` does today. The interface abstraction means the same `tls.Certificate` struct works whether the key is in a file, in the software KSP, or in a TPM.
+This is structurally identical to what `internal/client.NewMTLSWithSigner` does today. The interface abstraction means the same `tls.Certificate` struct works whether the key is in a file, in the software KSP, or in a TPM.
 
 ### When to use each
 
@@ -221,7 +221,7 @@ certutil -dump path\to\cert.crt
 | `tls: private key does not match public key` | Wrong key file paired with cert | Regenerate or match the correct key to the cert |
 | Access denied opening cert store | Service account lacks permissions | Grant private key access via `certutil -repairstore` or MMC |
 | `keyset does not exist` | Private key ACL missing for service account | Use MMC → Manage Private Keys to grant Read access |
-| TPM error during signing | TPM not available or key handle stale | Check TPM status via `Get-Tpm`; re-enroll if key handle is invalid |
+| TPM error during signing | TPM not available or key handle stale | Check TPM status via `internal/tpm.CheckTPM()` or `Get-Tpm`; re-enroll if key handle is invalid |
 
 ### Debugging with repo scenarios
 
@@ -231,9 +231,9 @@ The repo's scenarios form a useful diagnostic ladder for Windows deployment issu
 
 2. **Run `go run ./cmd/ mtlstpm` next.** This adds the Windows cert store and NCrypt layer for the client side. If `mtlsfiles` works but `mtlstpm` fails, the issue is in store access, key permissions, or TPM availability — not in basic TLS configuration.
 
-3. **Check the cert store directly.** The repo's `internal/pwsh` package provides `ShowCertsInStore(cn)`, which lists certificates matching a Common Name. Use this to verify that enrollment actually placed the certificate where you expect it.
+3. **Check the cert store directly.** The repo's `internal/tpm` package provides `ShowCertsInStore(cn)`, which lists certificates matching a Common Name from `CurrentUser\My`. Use this to verify that enrollment actually placed the certificate where you expect it.
 
-4. **Check TPM availability.** Run `pwsh scripts/run.ps1 mtlstpm` — the demo calls `pwsh.CheckTPM()` at startup, which reports whether a TPM is available and what provider will be used. If no TPM is present, the demo falls back to the software KSP, which still provides non-exportable key storage.
+4. **Check TPM availability.** Run `pwsh scripts/run.ps1 mtlstpm` — the demo calls `tpm.CheckTPM()` at startup, which reports whether a TPM-backed provider is available and what provider will be used. If no TPM is present, the demo falls back to the software KSP, which still provides non-exportable key storage.
 
 ## Mapping repo scenarios to Windows deployment
 

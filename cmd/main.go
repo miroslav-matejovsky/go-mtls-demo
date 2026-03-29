@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/mtlsenterprise"
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/mtlsfiles"
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/mtlsmem"
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tlsfiles"
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tlsmem"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/scenarios/mtlsenterprise"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/scenarios/mtlsfiles"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/scenarios/mtlsmem"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/scenarios/tlsfiles"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/scenarios/tlsmem"
 )
 
 func main() {
