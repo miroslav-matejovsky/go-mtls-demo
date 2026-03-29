@@ -144,9 +144,9 @@ func CreateRootCA(cn string, validity time.Duration) (*x509.Certificate, SignInt
 	return rootCert, signIntermediate, nil
 }
 
-// CreateLeafCertWithProfile generates a new ECDSA P-256 key pair and issues a
+// GenerateLeafCertificateAndKey generates a new ECDSA P-256 key pair and issues a
 // leaf certificate via the given ProfiledSignerFunc, applying the LeafProfile.
-func CreateLeafCertWithProfile(sign ProfiledSignerFunc, cn string, profile LeafProfile) (*x509.Certificate, *ecdsa.PrivateKey, error) {
+func GenerateLeafCertificateAndKey(sign ProfiledSignerFunc, cn string, profile LeafProfile) (*x509.Certificate, *ecdsa.PrivateKey, error) {
 	leafKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate leaf key: %w", err)

@@ -33,7 +33,7 @@ func step7UntrustedRequest(state *demoState, untrustedCfg UntrustedClientConfig)
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 	}
-	untrustedClientCert, untrustedClientKey, err := kpi.CreateLeafCertWithProfile(untrustedSignLeaf, untrustedCfg.CN, profile)
+	untrustedClientCert, untrustedClientKey, err := kpi.GenerateLeafCertificateAndKey(untrustedSignLeaf, untrustedCfg.CN, profile)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client certificate: %w", err)
 	}

@@ -55,7 +55,7 @@ func (o *Operator) SignServerCert(cn string, dnsNames []string) (*x509.Certifica
 		DNSNames:    dnsNames,
 		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 	}
-	return kpi.CreateLeafCertWithProfile(o.signLeaf, cn, profile)
+	return kpi.GenerateLeafCertificateAndKey(o.signLeaf, cn, profile)
 }
 
 // SignClientCert issues a leaf certificate with ClientAuth EKU and loopback IPs.
@@ -64,7 +64,7 @@ func (o *Operator) SignClientCert(cn string) (*x509.Certificate, *ecdsa.PrivateK
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 	}
-	return kpi.CreateLeafCertWithProfile(o.signLeaf, cn, profile)
+	return kpi.GenerateLeafCertificateAndKey(o.signLeaf, cn, profile)
 }
 
 // DistributeRootCA writes the root CA certificate to destPath.
