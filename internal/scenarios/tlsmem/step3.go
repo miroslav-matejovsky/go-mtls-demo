@@ -9,7 +9,7 @@ func step3StartServer(state *demoState) error {
 	fmt.Println("Server does NOT require a certificate from the client (one-way TLS).")
 	fmt.Println()
 
-	server, err := CreateServer(state.serverCertPEM, state.serverKeyPEM)
+	server, err := CreateServer(state.serverCert, state.serverPrivateKey)
 	if err != nil {
 		return fmt.Errorf("error creating server: %w", err)
 	}

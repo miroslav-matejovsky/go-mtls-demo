@@ -1,6 +1,7 @@
 package mtlsmem
 
 import (
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/x509"
 	"net/http"
@@ -46,26 +47,22 @@ type demoState struct {
 	serverPrivateKey *ecdsa.PrivateKey
 	clientCert       *x509.Certificate
 	clientPrivateKey *ecdsa.PrivateKey
-	serverCertPEM    []byte
-	serverKeyPEM     []byte
-	clientCertPEM    []byte
-	clientKeyPEM     []byte
 	server           *httptest.Server
 	serverURL        string
 }
 
-func CreateServer(certPem, privateKeyPem []byte, caCert *x509.Certificate) (*httptest.Server, error) {
+func CreateServer(cert *x509.Certificate, key crypto.Signer, caCert *x509.Certificate) (*httptest.Server, error) {
 	return server.NewMemoryMTLS(server.MemoryMTLSConfig{
-		CertificatePEM: certPem,
-		PrivateKeyPEM:  privateKeyPem,
-		ClientCA:       caCert,
+		Certificate: cert,
+		PrivateKey:  key,
+		ClientCA:    caCert,
 	})
 }
 
-func CreateClient(ca *x509.Certificate, clientCertPem, clientKeyPem []byte) (*http.Client, error) {
-	return client.NewMTLSFromMemory(client.MemoryMTLSConfig{
-		CACert:         ca,
-		CertificatePEM: clientCertPem,
-		PrivateKeyPEM:  clientKeyPem,
+func CreateClient(caCert *x509.Certificate, key crypto.Signer, clientCert *x509.Certificate) (*http.Client, error) {
+	return client.NewMTLSWithSigner(client.SignerMTLSConfig{
+		CACert:           caCert,
+		PrivateKey:       key,
+		CertificateChain: []*x509.Certificate{clientCert},
 	})
 }

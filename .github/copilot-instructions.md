@@ -76,7 +76,9 @@ Each demo package keeps the same high-level responsibilities, but the constructo
 
 **`signerFunc` / `pki.SignerFunc` closure pattern.** `pki.CreateCA()` returns a `SignerFunc` — a closure that signs leaf certificates with the CA's private key without exposing the key itself. Always pass this function through; never expose the raw CA key outside `internal/pki`.
 
-**`httptest` for mem-package servers.** In `tlsmem` and `mtlsmem`, use `httptest.NewUnstartedServer(handler)`, assign `server.TLS`, then call `server.StartTLS()`. Never call `server.Start()` — this project only exercises TLS paths.
+**`httptest` for mem-package servers.** In `tlsmem` and `mtlsmem`, use `httptest.NewUnstartedServer(handler)`, assign `server.TLS`, then call `server.StartTLS()`. Never call `server.Start()` — this project only exercises TLS paths. Memory-backed server and client configs accept `*x509.Certificate` + `crypto.Signer` directly — never PEM-encode in-memory keys just to pass them through.
+
+**`crypto.Signer` is the single key abstraction for in-memory mTLS.** Both memory-backed and TPM-backed mTLS clients use `client.NewMTLSWithSigner(client.SignerMTLSConfig{...})`. A plain `*ecdsa.PrivateKey` implements `crypto.Signer`, so the same constructor works for in-memory keys, software KSP keys, and TPM-backed keys. This means the full mTLS client path can be tested without the `internal/tpm` module — any `crypto.Signer` stands in for a hardware-backed key, enabling cross-platform integration tests with no Windows or TPM dependency.
 
 **`tls.Listen` + `server.Serve` for file-based servers.** In `tlsfiles`, `mtlsfiles`, and `mtlstpm`, `CreateServer` returns an `*http.Server` with `TLSConfig` set. The demo starts it with `tls.Listen("tcp", addr, server.TLSConfig)` then `go server.Serve(ln)`. No `httptest` is involved.
 
@@ -110,9 +112,9 @@ Each demo package keeps the same high-level responsibilities, but the constructo
 
 **`internal/authority` package.** Shared simple and enterprise CA helpers used by scenario-local `NewOperator` helpers defined in `demo.go`.
 
-**`internal/client` package.** Shared TLS client constructors for memory-backed, file-backed, and signer-backed identities, called from scenario-local `CreateClient` helpers in `demo.go`.
+**`internal/client` package.** Shared TLS client constructors: `NewTLSFromMemory` for one-way TLS, `NewMTLSWithSigner` for mTLS (accepts any `crypto.Signer` — works for in-memory, software KSP, and TPM-backed keys), and `NewMTLSFromFiles` / `NewTLSFromFiles` for file-backed scenarios. Called from scenario-local `CreateClient` helpers in `demo.go`.
 
-**`internal/server` package.** Shared TLS server constructors for memory-backed and file-backed scenarios, with optional default demo handlers, called from scenario-local `CreateServer` helpers in `demo.go`.
+**`internal/server` package.** Shared TLS server constructors: `NewMemoryTLS` / `NewMemoryMTLS` accept `*x509.Certificate` + `crypto.Signer` for in-memory scenarios, `NewFileTLS` / `NewFileMTLS` for file-backed scenarios. Includes optional default demo handlers. Called from scenario-local `CreateServer` helpers in `demo.go`.
 
 **`internal/pwsh` package.** Wraps `exec.Command("powershell", ...)` for script execution such as cleanup helpers. No build constraint needed — it just invokes the `powershell` binary.
 

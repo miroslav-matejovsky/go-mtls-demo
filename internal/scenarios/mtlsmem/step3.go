@@ -1,14 +1,12 @@
 package mtlsmem
 
 import (
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
 )
 
-// step3GenerateClientCertificate creates the trusted client certificate and PEM material for the mutual-TLS client.
+// step3GenerateClientCertificate creates the trusted client certificate for the mutual-TLS client.
 func step3GenerateClientCertificate(state *demoState) error {
 	fmt.Println("=== Step 3/6: Generate Client Certificate (signed by CA) ===")
 	fmt.Println("KEY DIFFERENCE from plain TLS: the client also has a certificate.")
@@ -20,15 +18,8 @@ func step3GenerateClientCertificate(state *demoState) error {
 		return fmt.Errorf("error creating client certificate: %w", err)
 	}
 
-	clientPrivPEMBytes, err := x509.MarshalECPrivateKey(clientPrivateKey)
-	if err != nil {
-		return fmt.Errorf("error marshaling client EC private key: %w", err)
-	}
-
 	state.clientCert = clientCert
 	state.clientPrivateKey = clientPrivateKey
-	state.clientCertPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: clientCert.Raw})
-	state.clientKeyPEM = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: clientPrivPEMBytes})
 
 	pki.PrintCertificateInfo(clientCert)
 	return nil

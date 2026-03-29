@@ -1,8 +1,6 @@
 package mtlsmem
 
 import (
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"time"
 
@@ -25,16 +23,9 @@ func step6MakeUntrustedRequest(state *demoState) error {
 		return fmt.Errorf("error creating untrusted client certificate: %w", err)
 	}
 
-	untrustedKeyPEMBytes, err := x509.MarshalECPrivateKey(untrustedClientKey)
-	if err != nil {
-		return fmt.Errorf("error marshaling untrusted client key: %w", err)
-	}
-	untrustedCertPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: untrustedClientCert.Raw})
-	untrustedKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: untrustedKeyPEMBytes})
-
 	// The untrusted client trusts the server's CA so the TLS dial proceeds far enough for
 	// the server to reject the client certificate.
-	untrustedClient, err := CreateClient(state.caCert, untrustedCertPEM, untrustedKeyPEM)
+	untrustedClient, err := CreateClient(state.caCert, untrustedClientKey, untrustedClientCert)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client: %w", err)
 	}

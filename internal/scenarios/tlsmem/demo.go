@@ -1,6 +1,7 @@
 package tlsmem
 
 import (
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/x509"
 	"net/http"
@@ -37,17 +38,15 @@ type demoState struct {
 	signLeaf         pki.SignerFunc
 	serverCert       *x509.Certificate
 	serverPrivateKey *ecdsa.PrivateKey
-	serverCertPEM    []byte
-	serverKeyPEM     []byte
 	server           *httptest.Server
 	serverURL        string
 	client           *http.Client
 }
 
-func CreateServer(certPem, privateKeyPem []byte) (*httptest.Server, error) {
+func CreateServer(cert *x509.Certificate, key crypto.Signer) (*httptest.Server, error) {
 	return server.NewMemoryTLS(server.MemoryTLSConfig{
-		CertificatePEM: certPem,
-		PrivateKeyPEM:  privateKeyPem,
+		Certificate: cert,
+		PrivateKey:  key,
 	})
 }
 

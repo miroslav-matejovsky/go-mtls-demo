@@ -46,7 +46,7 @@ This is the best place to understand the contract of mTLS before you introduce f
 
 ## `tlsfiles`: TLS with realistic loading boundaries
 
-In real applications, certificates usually come from files, stores, or secret backends rather than from in-memory PEM blobs created inside the same process.
+In real applications, certificates usually come from files, stores, or secret backends rather than from in-memory objects created inside the same process.
 
 `tlsfiles` shows the disk-loading pattern:
 
@@ -158,7 +158,7 @@ Use this when you need a realistic PKI topology and want to understand how chain
 
 ## `mtlstpm`: advanced key-management pattern
 
-`mtlstpm` is the advanced example in the repo. Its main teaching value is that Go's TLS stack can work with a `crypto.Signer` instead of raw private-key bytes.
+`mtlstpm` is the advanced example in the repo. Its main teaching value is that Go's TLS stack can work with a `crypto.Signer` instead of raw private-key bytes. All memory-backed scenarios (`tlsmem`, `mtlsmem`) now use the same `crypto.Signer` abstraction — a plain `*ecdsa.PrivateKey` implements the interface, so the pattern is consistent from the simplest demo to TPM-backed production code.
 
 That lets the private key live in the Windows certificate store and be backed by TPM or NCrypt.
 
@@ -216,6 +216,8 @@ If you are implementing mTLS in Go today:
 - copy the enterprise PKI patterns from `mtlsenterprise` if you need an intermediate CA, role-specific EKU, or chain bundles
 - copy the enterprise PKI + TPM patterns from `mtlsenterprisetpm` if you need hardware-backed client keys with a production CA hierarchy (Windows only)
 - copy the `crypto.Signer` pattern from `mtlstpm` only if you need stronger key isolation with a simpler CA model
+
+The `crypto.Signer` abstraction is now used consistently across all memory-backed scenarios, not just `mtlstpm`. This means you can test the full mTLS client path (including `client.NewMTLSWithSigner`) with a plain `*ecdsa.PrivateKey` — no Windows, TPM, or `internal/tpm` dependency required.
 
 For most applications, `mtlsenterprisetpm` is the most production-complete reference (enterprise PKI + hardware-backed keys, Windows only). On non-Windows platforms, `mtlsenterprise` is the best production PKI reference. `mtlsfiles` remains the simplest operational baseline.
 

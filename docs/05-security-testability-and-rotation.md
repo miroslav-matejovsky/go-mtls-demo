@@ -47,6 +47,7 @@ The repo should keep teaching these testing rules:
 4. keep negative-path tests as first-class tests
 5. use temp directories for file-backed scenarios
 6. treat TPM or OS-store scenarios as Windows-specific integration paths
+7. use `crypto.Signer` to test the mTLS client path without TPM or Windows dependencies — a plain `*ecdsa.PrivateKey` stands in for any hardware-backed key, so `client.NewMTLSWithSigner` can be exercised in cross-platform tests
 
 A useful long-term rule for this repo is:
 
