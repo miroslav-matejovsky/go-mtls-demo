@@ -87,10 +87,10 @@ func CreateCA(cn string, validity time.Duration) (*x509.Certificate, SignerFunc,
 	return caCert, signLeaf, nil
 }
 
-// CreateLeafCert generates a new ECDSA P-256 key pair and issues a leaf certificate
+// CreateLeafCertAndKey generates a new ECDSA P-256 key pair and issues a leaf certificate
 // signed by the provided SignerFunc with the given common name.
 // this might be replaced by certtostore store.GenerateKey()
-func CreateLeafCert(signLeaf SignerFunc, cn string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
+func CreateLeafCertAndKey(signLeaf SignerFunc, cn string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
 	leafKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate leaf key: %w", err)

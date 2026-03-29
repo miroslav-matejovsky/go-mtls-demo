@@ -19,7 +19,7 @@ func step4GenerateUntrustedClient(state *demoState, untrustedCfg UntrustedClient
 	if err != nil {
 		return fmt.Errorf("error creating untrusted CA: %w", err)
 	}
-	untrustedClientCert, untrustedClientKey, err := kpi.CreateLeafCert(untrustedSignLeaf, untrustedCfg.CN)
+	untrustedClientCert, untrustedClientKey, err := kpi.CreateLeafCertAndKey(untrustedSignLeaf, untrustedCfg.CN)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client certificate: %w", err)
 	}

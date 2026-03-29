@@ -15,7 +15,7 @@ func step2GenerateServerCertificate(state *demoState) error {
 	fmt.Println("The client verifies its signature chain leads back to the trusted cert.")
 	fmt.Println()
 
-	serverCert, serverPrivateKey, err := kpi.CreateLeafCert(state.signLeaf, "go TLS Demo Server")
+	serverCert, serverPrivateKey, err := kpi.CreateLeafCertAndKey(state.signLeaf, "go TLS Demo Server")
 	if err != nil {
 		return fmt.Errorf("error creating server certificate: %w", err)
 	}

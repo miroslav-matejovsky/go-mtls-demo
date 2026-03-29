@@ -36,7 +36,7 @@ func NewOperator(cfg OperatorConfig) (*Operator, error) {
 
 // SignCert generates a new ECDSA key pair and issues a leaf certificate for cn.
 func (o *Operator) SignCert(cn string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-	return kpi.CreateLeafCert(o.signFn, cn)
+	return kpi.CreateLeafCertAndKey(o.signFn, cn)
 }
 
 // DistributeCA writes the CA certificate to destPath, simulating the operator
