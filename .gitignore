@@ -4,5 +4,5 @@
 
 .local
 
-certs/
+/certs/
 bin/
