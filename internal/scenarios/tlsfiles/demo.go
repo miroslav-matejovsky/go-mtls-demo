@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/authority"
-	sharedclient "github.com/miroslav-matejovsky/go-mtls-demo/internal/client"
-	sharedserver "github.com/miroslav-matejovsky/go-mtls-demo/internal/server"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/client"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/server"
 )
 
 func RunDemo() error {
@@ -99,14 +99,14 @@ func NewOperator(cfg OperatorConfig) (*Operator, error) {
 }
 
 func CreateServer(certFile, keyFile string) (*http.Server, error) {
-	return sharedserver.NewFileTLS(sharedserver.FileTLSConfig{
+	return server.NewFileTLS(server.FileTLSConfig{
 		CertificateFile: certFile,
 		PrivateKeyFile:  keyFile,
 	})
 }
 
 func CreateClient(caCertFile string) (*http.Client, error) {
-	return sharedclient.NewTLSFromFiles(sharedclient.FileTLSConfig{
+	return client.NewTLSFromFiles(client.FileTLSConfig{
 		CACertFile: caCertFile,
 	})
 }

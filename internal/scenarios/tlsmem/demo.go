@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	sharedclient "github.com/miroslav-matejovsky/go-mtls-demo/internal/client"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/client"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
-	sharedserver "github.com/miroslav-matejovsky/go-mtls-demo/internal/server"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/server"
 )
 
 func RunDemo() error {
@@ -45,14 +45,14 @@ type demoState struct {
 }
 
 func CreateServer(certPem, privateKeyPem []byte) (*httptest.Server, error) {
-	return sharedserver.NewMemoryTLS(sharedserver.MemoryTLSConfig{
+	return server.NewMemoryTLS(server.MemoryTLSConfig{
 		CertificatePEM: certPem,
 		PrivateKeyPEM:  privateKeyPem,
 	})
 }
 
 func CreateClient(ca *x509.Certificate) (*http.Client, error) {
-	return sharedclient.NewTLSFromMemory(sharedclient.MemoryTLSConfig{
+	return client.NewTLSFromMemory(client.MemoryTLSConfig{
 		CACert: ca,
 	})
 }

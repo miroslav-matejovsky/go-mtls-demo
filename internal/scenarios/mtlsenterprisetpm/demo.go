@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/authority"
-	sharedclient "github.com/miroslav-matejovsky/go-mtls-demo/internal/client"
-	sharedserver "github.com/miroslav-matejovsky/go-mtls-demo/internal/server"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/client"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/server"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
 )
 
@@ -172,7 +172,7 @@ func NewOperator(cfg OperatorConfig) (*Operator, error) {
 }
 
 func CreateServer(chainFile, keyFile, rootCertFile string) (*http.Server, error) {
-	return sharedserver.NewFileMTLS(sharedserver.FileMTLSConfig{
+	return server.NewFileMTLS(server.FileMTLSConfig{
 		CertificateFile: chainFile,
 		PrivateKeyFile:  keyFile,
 		ClientCAFile:    rootCertFile,
@@ -180,7 +180,7 @@ func CreateServer(chainFile, keyFile, rootCertFile string) (*http.Server, error)
 }
 
 func CreateClient(rootCert *x509.Certificate, intermediateCert *x509.Certificate, key crypto.Signer, clientCert *x509.Certificate) (*http.Client, error) {
-	return sharedclient.NewMTLSWithSigner(sharedclient.SignerMTLSConfig{
+	return client.NewMTLSWithSigner(client.SignerMTLSConfig{
 		CACert:     rootCert,
 		PrivateKey: key,
 		CertificateChain: []*x509.Certificate{
