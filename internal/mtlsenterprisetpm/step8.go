@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 // step8UntrustedClient creates a separate enterprise PKI hierarchy and shows the server rejecting it.
@@ -26,7 +26,7 @@ func step8UntrustedClient(state *demoState, untrustedCfg UntrustedClientConfig) 
 	fmt.Println()
 
 	// Build an entirely separate PKI: root → intermediate → client leaf
-	_, untrustedSignInt, err := cert.CreateRootCA(untrustedCfg.RootCACN, 24*time.Hour)
+	_, untrustedSignInt, err := kpi.CreateRootCA(untrustedCfg.RootCACN, 24*time.Hour)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted root CA: %w", err)
 	}
@@ -35,11 +35,11 @@ func step8UntrustedClient(state *demoState, untrustedCfg UntrustedClientConfig) 
 		return fmt.Errorf("error creating untrusted intermediate CA: %w", err)
 	}
 
-	profile := cert.LeafProfile{
+	profile := kpi.LeafProfile{
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 	}
-	untrustedClientCert, untrustedClientKey, err := cert.CreateLeafCertWithProfile(untrustedSignLeaf, untrustedCfg.CN, profile)
+	untrustedClientCert, untrustedClientKey, err := kpi.GenerateLeafCertificateAndKey(untrustedSignLeaf, untrustedCfg.CN, profile)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client certificate: %w", err)
 	}
@@ -49,10 +49,10 @@ func step8UntrustedClient(state *demoState, untrustedCfg UntrustedClientConfig) 
 	}
 
 	// Write untrusted chain bundle (leaf + untrusted intermediate)
-	if err := cert.WriteChainBundle(untrustedCfg.ChainFile, untrustedClientCert, untrustedIntCert); err != nil {
+	if err := kpi.WriteChainBundle(untrustedCfg.ChainFile, untrustedClientCert, untrustedIntCert); err != nil {
 		return fmt.Errorf("error writing untrusted client chain bundle: %w", err)
 	}
-	if err := cert.WriteKey(untrustedCfg.KeyFile, untrustedKeyBytes); err != nil {
+	if err := kpi.WriteKey(untrustedCfg.KeyFile, untrustedKeyBytes); err != nil {
 		return fmt.Errorf("error writing untrusted client key: %w", err)
 	}
 	// The untrusted client still needs the TRUSTED server's root CA to verify the server cert

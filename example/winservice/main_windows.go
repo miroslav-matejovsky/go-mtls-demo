@@ -20,7 +20,7 @@ import (
 
 	"github.com/google/certtostore"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/cert"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
 )
 
 const (
@@ -46,7 +46,7 @@ const (
 type demoState struct {
 	rootCert     *x509.Certificate
 	intCert      *x509.Certificate
-	signLeaf     cert.ProfiledSignerFunc
+	signLeaf     kpi.ProfiledSignerFunc
 	provider     string
 	store        *certtostore.WinCertStore
 	clientSigner crypto.Signer
@@ -178,12 +178,12 @@ func step1CreateRootCA(state *demoState) error {
 	fmt.Println("In production the root CA is offline — it only signs intermediate CAs.")
 	fmt.Println()
 
-	rootCert, signInt, err := cert.CreateRootCA(rootCACN, 365*24*time.Hour)
+	rootCert, signInt, err := kpi.CreateRootCA(rootCACN, 365*24*time.Hour)
 	if err != nil {
 		return fmt.Errorf("creating root CA: %w", err)
 	}
 
-	if err := cert.WriteCert(rootCACertFile, rootCert); err != nil {
+	if err := kpi.WriteCert(rootCACertFile, rootCert); err != nil {
 		return fmt.Errorf("writing root CA cert: %w", err)
 	}
 
@@ -192,7 +192,7 @@ func step1CreateRootCA(state *demoState) error {
 		return fmt.Errorf("creating intermediate CA: %w", err)
 	}
 
-	if err := cert.WriteCert(intCACertFile, intCert); err != nil {
+	if err := kpi.WriteCert(intCACertFile, intCert); err != nil {
 		return fmt.Errorf("writing intermediate CA cert: %w", err)
 	}
 
@@ -201,7 +201,7 @@ func step1CreateRootCA(state *demoState) error {
 	state.signLeaf = signLeaf
 
 	fmt.Println("[OPERATOR] Root CA certificate:")
-	cert.PrintCertificateInfo(rootCert)
+	kpi.PrintCertificateInfo(rootCert)
 	fmt.Printf("  Root CA cert → %s\n", rootCACertFile)
 	fmt.Println("  Root CA key stays in memory — never written to disk.")
 	fmt.Println()
@@ -216,7 +216,7 @@ func step2CreateIntermediateCA(state *demoState) error {
 	fmt.Println()
 
 	fmt.Println("[OPERATOR] Intermediate CA certificate:")
-	cert.PrintCertificateInfo(state.intCert)
+	kpi.PrintCertificateInfo(state.intCert)
 
 	fmt.Println("[OPERATOR] SKID/AKID linkage:")
 	fmt.Printf("  Root SKID         : %X\n", state.rootCert.SubjectKeyId)
@@ -233,32 +233,32 @@ func step3GenerateServerCert(state *demoState) error {
 	fmt.Println("=== Step 3/9: Generate server certificate (ServerAuth EKU, DNS SANs) ===")
 	fmt.Println()
 
-	profile := cert.LeafProfile{
+	profile := kpi.LeafProfile{
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		DNSNames:    []string{"localhost"},
 		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 	}
-	serverCert, serverKey, err := cert.CreateLeafCertWithProfile(state.signLeaf, serverCN, profile)
+	serverCert, serverKey, err := kpi.GenerateLeafCertificateAndKey(state.signLeaf, serverCN, profile)
 	if err != nil {
 		return fmt.Errorf("creating server cert: %w", err)
 	}
 
-	if err := cert.WriteChainBundle(serverChainFile, serverCert, state.intCert); err != nil {
+	if err := kpi.WriteChainBundle(serverChainFile, serverCert, state.intCert); err != nil {
 		return fmt.Errorf("writing server chain: %w", err)
 	}
 	keyDER, err := x509.MarshalECPrivateKey(serverKey)
 	if err != nil {
 		return fmt.Errorf("marshaling server key: %w", err)
 	}
-	if err := cert.WriteKey(serverKeyFile, keyDER); err != nil {
+	if err := kpi.WriteKey(serverKeyFile, keyDER); err != nil {
 		return fmt.Errorf("writing server key: %w", err)
 	}
-	if err := cert.WriteCert(serverRootCAFile, state.rootCert); err != nil {
+	if err := kpi.WriteCert(serverRootCAFile, state.rootCert); err != nil {
 		return fmt.Errorf("distributing root CA to server: %w", err)
 	}
 
 	fmt.Println("[OPERATOR] Server certificate:")
-	cert.PrintCertificateInfo(serverCert)
+	kpi.PrintCertificateInfo(serverCert)
 	fmt.Printf("  [SERVER] Chain bundle → %s\n", serverChainFile)
 	fmt.Printf("  [SERVER] Private key  → %s\n", serverKeyFile)
 	fmt.Printf("  [SERVER] Root CA cert → %s\n", serverRootCAFile)
@@ -314,7 +314,7 @@ func step5SignClientCert(state *demoState) error {
 	fmt.Println("The intermediate CA issues a ClientAuth leaf cert for the store-backed public key.")
 	fmt.Println()
 
-	profile := cert.LeafProfile{
+	profile := kpi.LeafProfile{
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 	}
@@ -325,7 +325,7 @@ func step5SignClientCert(state *demoState) error {
 	state.clientCert = clientCert
 
 	fmt.Println("[OPERATOR] Client certificate:")
-	cert.PrintCertificateInfo(clientCert)
+	kpi.PrintCertificateInfo(clientCert)
 	fmt.Println("  [CLIENT] EKU    : ClientAuth only")
 	fmt.Printf("  [CLIENT] Issuer : %s (intermediate CA)\n", clientCert.Issuer.CommonName)
 	fmt.Println("  [CLIENT] Private key lives inside the provider — no .key file is written.")
@@ -451,7 +451,7 @@ func step7StartServerAndRequest(state *demoState) error {
 		resp.TLS.PeerCertificates[0].Subject.CommonName,
 		resp.TLS.PeerCertificates[0].Issuer.CommonName)
 	fmt.Printf("[CLIENT] Handshake — version: %s, cipher suite: %s\n",
-		cert.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
+		kpi.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
 	fmt.Printf("[CLIENT] Signing performed by: %s (private key never left the provider)\n", state.provider)
 	fmt.Printf("[CLIENT] Response: %s\n", resp.Status)
 	fmt.Println()
@@ -471,7 +471,7 @@ func step8UntrustedClient(state *demoState) error {
 	fmt.Println()
 
 	// Build separate PKI
-	_, untrustedSignInt, err := cert.CreateRootCA(untrustedRootCN, 24*time.Hour)
+	_, untrustedSignInt, err := kpi.CreateRootCA(untrustedRootCN, 24*time.Hour)
 	if err != nil {
 		return fmt.Errorf("creating untrusted root CA: %w", err)
 	}
@@ -480,11 +480,11 @@ func step8UntrustedClient(state *demoState) error {
 		return fmt.Errorf("creating untrusted intermediate CA: %w", err)
 	}
 
-	profile := cert.LeafProfile{
+	profile := kpi.LeafProfile{
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 	}
-	untrustedClientCert, untrustedClientKey, err := cert.CreateLeafCertWithProfile(untrustedSignLeaf, untrustedCliCN, profile)
+	untrustedClientCert, untrustedClientKey, err := kpi.GenerateLeafCertificateAndKey(untrustedSignLeaf, untrustedCliCN, profile)
 	if err != nil {
 		return fmt.Errorf("creating untrusted client cert: %w", err)
 	}
