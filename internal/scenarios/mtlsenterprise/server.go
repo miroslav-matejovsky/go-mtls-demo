@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
 )
 
 func CreateServer(chainFile, keyFile, rootCertFile string) (*http.Server, error) {
@@ -41,7 +41,7 @@ func CreateServer(chainFile, keyFile, rootCertFile string) (*http.Server, error)
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tlsState := r.TLS
 			fmt.Printf("[SERVER] Received request over mTLS — version: %s, cipher suite: %s\n",
-				kpi.TLSVersionName(tlsState.Version), tls.CipherSuiteName(tlsState.CipherSuite))
+				pki.TLSVersionName(tlsState.Version), tls.CipherSuiteName(tlsState.CipherSuite))
 			if len(tlsState.PeerCertificates) > 0 {
 				fmt.Printf("[SERVER] Client certificate: %s (issued by %s)\n",
 					tlsState.PeerCertificates[0].Subject, tlsState.PeerCertificates[0].Issuer)

@@ -5,7 +5,7 @@ import (
 	"crypto/x509"
 	"net/http/httptest"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
 )
 
 func RunDemo() error {
@@ -38,7 +38,7 @@ func runDemo() error {
 
 type demoState struct {
 	caCert           *x509.Certificate
-	signLeaf         kpi.SignerFunc
+	signLeaf         pki.SignerFunc
 	serverCert       *x509.Certificate
 	serverPrivateKey *ecdsa.PrivateKey
 	clientCert       *x509.Certificate

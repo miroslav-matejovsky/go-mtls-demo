@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
 )
 
 // Operator represents the enterprise PKI operator managing a two-tier CA hierarchy.
@@ -14,7 +14,7 @@ import (
 type Operator struct {
 	rootCert *x509.Certificate
 	intCert  *x509.Certificate
-	signLeaf kpi.ProfiledSignerFunc
+	signLeaf pki.ProfiledSignerFunc
 }
 
 // NewOperator creates a root CA and an intermediate CA from cfg, writes both CA
@@ -25,11 +25,11 @@ func NewOperator(cfg OperatorConfig) (*Operator, error) {
 	if err != nil {
 		return nil, err
 	}
-	rootCert, signIntermediate, err := kpi.CreateRootCA(cfg.RootCA.CN, rootValidity)
+	rootCert, signIntermediate, err := pki.CreateRootCA(cfg.RootCA.CN, rootValidity)
 	if err != nil {
 		return nil, fmt.Errorf("creating root CA: %w", err)
 	}
-	if err := kpi.WriteCert(cfg.RootCA.CertFile, rootCert); err != nil {
+	if err := pki.WriteCert(cfg.RootCA.CertFile, rootCert); err != nil {
 		return nil, fmt.Errorf("writing root CA certificate: %w", err)
 	}
 
@@ -41,7 +41,7 @@ func NewOperator(cfg OperatorConfig) (*Operator, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating intermediate CA: %w", err)
 	}
-	if err := kpi.WriteCert(cfg.IntermediateCA.CertFile, intCert); err != nil {
+	if err := pki.WriteCert(cfg.IntermediateCA.CertFile, intCert); err != nil {
 		return nil, fmt.Errorf("writing intermediate CA certificate: %w", err)
 	}
 
@@ -50,38 +50,38 @@ func NewOperator(cfg OperatorConfig) (*Operator, error) {
 
 // SignServerCert issues a leaf certificate with ServerAuth EKU, DNS SANs, and loopback IPs.
 func (o *Operator) SignServerCert(cn string, dnsNames []string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-	profile := kpi.LeafProfile{
+	profile := pki.LeafProfile{
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		DNSNames:    dnsNames,
 		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 	}
-	return kpi.GenerateLeafCertificateAndKey(o.signLeaf, cn, profile)
+	return pki.GenerateLeafCertificateAndKey(o.signLeaf, cn, profile)
 }
 
 // SignClientCert issues a leaf certificate with ClientAuth EKU and loopback IPs.
 func (o *Operator) SignClientCert(cn string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-	profile := kpi.LeafProfile{
+	profile := pki.LeafProfile{
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 	}
-	return kpi.GenerateLeafCertificateAndKey(o.signLeaf, cn, profile)
+	return pki.GenerateLeafCertificateAndKey(o.signLeaf, cn, profile)
 }
 
 // DistributeRootCA writes the root CA certificate to destPath.
 func (o *Operator) DistributeRootCA(destPath string) error {
-	return kpi.WriteCert(destPath, o.rootCert)
+	return pki.WriteCert(destPath, o.rootCert)
 }
 
 // WriteServerChain writes a PEM bundle containing the server leaf cert followed
 // by the intermediate CA cert.
 func (o *Operator) WriteServerChain(chainPath string, serverCert *x509.Certificate) error {
-	return kpi.WriteChainBundle(chainPath, serverCert, o.intCert)
+	return pki.WriteChainBundle(chainPath, serverCert, o.intCert)
 }
 
 // WriteClientChain writes a PEM bundle containing the client leaf cert followed
 // by the intermediate CA cert.
 func (o *Operator) WriteClientChain(chainPath string, clientCert *x509.Certificate) error {
-	return kpi.WriteChainBundle(chainPath, clientCert, o.intCert)
+	return pki.WriteChainBundle(chainPath, clientCert, o.intCert)
 }
 
 // RootCert returns the operator's root CA certificate.

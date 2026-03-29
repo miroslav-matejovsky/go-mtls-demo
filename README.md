@@ -12,8 +12,8 @@ mTLS (mutual)   Client ──── verify server cert ────► Server
 
 ## Scenarios
 
-| Package                                                   | Mode        | Certs                                                                  |
-| --------------------------------------------------------- | ----------- | ---------------------------------------------------------------------- |
+| Package                                                             | Mode        | Certs                                                                  |
+| ------------------------------------------------------------------- | ----------- | ---------------------------------------------------------------------- |
 | [tlsmem](internal/scenarios/tlsmem/README.md)                       | One-way TLS | In memory                                                              |
 | [mtlsmem](internal/scenarios/mtlsmem/README.md)                     | Mutual TLS  | In memory                                                              |
 | [tlsfiles](internal/scenarios/tlsfiles/README.md)                   | One-way TLS | Written to `certs/tlsfiles/`                                           |

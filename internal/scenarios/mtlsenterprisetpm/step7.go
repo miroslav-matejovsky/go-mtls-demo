@@ -8,7 +8,7 @@ import (
 	"io"
 	"log"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
 )
 
 // step7StartServerAndRequest starts the file-backed mTLS server and completes the trusted request
@@ -54,7 +54,7 @@ func step7StartServerAndRequest(state *demoState, serverCfg ServerConfig) error 
 	fmt.Printf("[CLIENT] Server certificate verified: %s (issued by %s)\n",
 		resp.TLS.PeerCertificates[0].Subject.CommonName, resp.TLS.PeerCertificates[0].Issuer.CommonName)
 	fmt.Printf("[CLIENT] Handshake complete  — version: %s, cipher suite: %s\n",
-		kpi.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
+		pki.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
 	fmt.Printf("[CLIENT] Signing performed by: %s (private key never left the provider)\n", state.provider)
 	fmt.Println("[CLIENT] Response:", resp.Status)
 	fmt.Println()

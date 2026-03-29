@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
 )
 
 func CreateServer(certPem, privateKeyPem []byte) (*httptest.Server, error) {
@@ -23,7 +23,7 @@ func CreateServer(certPem, privateKeyPem []byte) (*httptest.Server, error) {
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tlsState := r.TLS
 		fmt.Printf("[SERVER] Received request over TLS — version: %s, cipher suite: %s\n",
-			kpi.TLSVersionName(tlsState.Version), tls.CipherSuiteName(tlsState.CipherSuite))
+			pki.TLSVersionName(tlsState.Version), tls.CipherSuiteName(tlsState.CipherSuite))
 		fmt.Fprintln(w, "success!")
 	}))
 	server.TLS = serverTLSConf

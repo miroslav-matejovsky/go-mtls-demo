@@ -5,7 +5,7 @@ package mtlsenterprisetpm
 import (
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
 )
 
 // step5SignClientCert signs a client certificate with the enterprise intermediate CA
@@ -22,7 +22,7 @@ func step5SignClientCert(state *demoState, clientCfg ClientConfig) error {
 	state.clientCert = clientCert
 
 	fmt.Println("[OPERATOR] Client certificate:")
-	kpi.PrintCertificateInfo(clientCert)
+	pki.PrintCertificateInfo(clientCert)
 	fmt.Printf("  [CLIENT] EKU    : ClientAuth only\n")
 	fmt.Printf("  [CLIENT] Issuer : %s (intermediate CA)\n", clientCert.Issuer.CommonName)
 	fmt.Println("  [CLIENT] Private key lives inside the provider — no .key file is written.")

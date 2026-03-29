@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
 )
 
 // step2CreateIntermediateCA prints the intermediate CA info and shows SKID/AKID linkage.
@@ -17,7 +17,7 @@ func step2CreateIntermediateCA(state *demoState) error {
 	rootCert := state.operator.RootCert()
 
 	fmt.Println("[OPERATOR] Intermediate CA certificate:")
-	kpi.PrintCertificateInfo(intCert)
+	pki.PrintCertificateInfo(intCert)
 
 	fmt.Printf("  [OPERATOR] SKID/AKID linkage:\n")
 	fmt.Printf("    Root SKID         : %X\n", rootCert.SubjectKeyId)

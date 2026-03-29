@@ -5,7 +5,7 @@ import (
 	"encoding/pem"
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
 )
 
 // step2GenerateServerCertificate creates the server certificate and PEM material needed by the mTLS server.
@@ -15,7 +15,7 @@ func step2GenerateServerCertificate(state *demoState) error {
 	fmt.Println("The client verifies its signature chain leads back to the trusted CA.")
 	fmt.Println()
 
-	serverCert, serverPrivateKey, err := kpi.CreateLeafCertAndKey(state.signLeaf, "go mTLS Demo Server")
+	serverCert, serverPrivateKey, err := pki.CreateLeafCertAndKey(state.signLeaf, "go mTLS Demo Server")
 	if err != nil {
 		return fmt.Errorf("error creating server certificate: %w", err)
 	}
@@ -30,6 +30,6 @@ func step2GenerateServerCertificate(state *demoState) error {
 	state.serverCertPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: serverCert.Raw})
 	state.serverKeyPEM = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: serverPrivPEMBytes})
 
-	kpi.PrintCertificateInfo(serverCert)
+	pki.PrintCertificateInfo(serverCert)
 	return nil
 }

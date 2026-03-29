@@ -4,7 +4,7 @@ import (
 	"crypto/x509"
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/kpi"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
 )
 
 // step4GenerateClientCert issues a client certificate with ClientAuth EKU.
@@ -24,7 +24,7 @@ func step4GenerateClientCert(state *demoState, clientCfg ClientConfig) error {
 	if err := state.operator.WriteClientChain(clientCfg.ChainFile, clientCert); err != nil {
 		return fmt.Errorf("error writing client chain bundle: %w", err)
 	}
-	if err := kpi.WriteKey(clientCfg.KeyFile, clientKeyBytes); err != nil {
+	if err := pki.WriteKey(clientCfg.KeyFile, clientKeyBytes); err != nil {
 		return fmt.Errorf("error writing client key: %w", err)
 	}
 	if err := state.operator.DistributeRootCA(clientCfg.RootCertFile); err != nil {
@@ -32,7 +32,7 @@ func step4GenerateClientCert(state *demoState, clientCfg ClientConfig) error {
 	}
 
 	fmt.Println("[OPERATOR] Client certificate:")
-	kpi.PrintCertificateInfo(clientCert)
+	pki.PrintCertificateInfo(clientCert)
 	fmt.Printf("  [CLIENT] EKU         : ClientAuth only\n")
 	fmt.Printf("  [CLIENT] Chain bundle → %s\n", clientCfg.ChainFile)
 	fmt.Printf("  [CLIENT] Private key  → %s\n", clientCfg.KeyFile)
