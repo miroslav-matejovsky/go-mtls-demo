@@ -14,11 +14,11 @@ func step1CreateRootCA(state *demoState, opCfg OperatorConfig) error {
 	fmt.Println("In production the root CA is offline — it only signs intermediate CAs.")
 	fmt.Println()
 
-	operator, err := NewOperator(opCfg)
+	operator, err := NewAuthority(opCfg)
 	if err != nil {
 		return fmt.Errorf("error creating operator: %w", err)
 	}
-	state.operator = operator
+	state.authority = operator
 
 	fmt.Println("[OPERATOR] Root CA certificate:")
 	ca.PrintCertificateInfo(operator.TrustAnchor())

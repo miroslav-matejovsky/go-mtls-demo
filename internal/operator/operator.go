@@ -1,51 +1,40 @@
 package operator
 
 import (
-	"crypto"
 	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
 )
 
-// Operator represents a certificate authority operator that can issue server
-// and client leaf certificates and distribute them to the file system. It covers
-// both single-tier PKI (NewSimple) and two-tier PKI with a root and an
-// intermediate CA (NewEnterprise). Use TrustAnchor to obtain the certificate
-// that relying parties should trust.
-type Operator struct {
-	trustAnchor  *x509.Certificate
-	intermediate *x509.Certificate // nil for single-tier PKI
-	sign         ca.ProfiledSignerFunc
-}
-
-// NewSimple creates a single-tier self-signed CA, writes its certificate to
-// disk, and returns an Operator ready to issue leaf certificates.
-func NewSimple(cfg CAConfig) (*Operator, error) {
+// NewSimple creates a single-tier certificate authority service and persists
+// the operator-managed CA certificate to disk.
+func NewSimple(cfg CAConfig) (*ca.Authority, error) {
 	if err := validateCAConfig("simple CA", cfg); err != nil {
 		return nil, err
 	}
 
-	caCert, sign, err := ca.CreateProfiledCA(cfg.CN, cfg.Validity)
+	authority, err := ca.NewSimple(ca.CAConfig{
+		CN:       cfg.CN,
+		Validity: cfg.Validity,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("creating simple CA: %w", err)
 	}
-	if err := WriteCert(cfg.CertFile, caCert); err != nil {
+	if err := WriteCert(cfg.CertFile, authority.TrustAnchor()); err != nil {
 		return nil, fmt.Errorf("writing simple CA certificate: %w", err)
 	}
 
-	return &Operator{trustAnchor: caCert, sign: sign}, nil
+	return authority, nil
 }
 
-// NewEnterprise creates a two-tier PKI with an offline-style root CA and an
-// operational intermediate CA, writes both certificates to disk, and returns
-// an Operator ready to issue profiled leaf certificates.
-func NewEnterprise(cfg EnterpriseConfig) (*Operator, error) {
+// NewEnterprise creates a two-tier certificate authority service and persists
+// the operator-managed root and intermediate certificates to disk.
+func NewEnterprise(cfg EnterpriseConfig) (*ca.Authority, error) {
 	if err := validateCAConfig("root CA", cfg.RootCA); err != nil {
 		return nil, err
 	}
@@ -53,84 +42,72 @@ func NewEnterprise(cfg EnterpriseConfig) (*Operator, error) {
 		return nil, err
 	}
 
-	rootCert, signIntermediate, err := ca.CreateRootCA(cfg.RootCA.CN, cfg.RootCA.Validity)
+	authority, err := ca.NewEnterprise(ca.EnterpriseConfig{
+		RootCA: ca.CAConfig{
+			CN:       cfg.RootCA.CN,
+			Validity: cfg.RootCA.Validity,
+		},
+		IntermediateCA: ca.CAConfig{
+			CN:       cfg.IntermediateCA.CN,
+			Validity: cfg.IntermediateCA.Validity,
+		},
+	})
 	if err != nil {
-		return nil, fmt.Errorf("creating root CA: %w", err)
+		return nil, fmt.Errorf("creating enterprise CA: %w", err)
 	}
-	if err := WriteCert(cfg.RootCA.CertFile, rootCert); err != nil {
+	if err := WriteCert(cfg.RootCA.CertFile, authority.TrustAnchor()); err != nil {
 		return nil, fmt.Errorf("writing root CA certificate: %w", err)
 	}
 
-	intCert, sign, err := signIntermediate(cfg.IntermediateCA.CN, cfg.IntermediateCA.Validity)
-	if err != nil {
-		return nil, fmt.Errorf("creating intermediate CA: %w", err)
+	intermediate := authority.Intermediate()
+	if intermediate == nil {
+		return nil, fmt.Errorf("creating enterprise CA: intermediate certificate is required")
 	}
-	if err := WriteCert(cfg.IntermediateCA.CertFile, intCert); err != nil {
+	if err := WriteCert(cfg.IntermediateCA.CertFile, intermediate); err != nil {
 		return nil, fmt.Errorf("writing intermediate CA certificate: %w", err)
 	}
 
-	return &Operator{trustAnchor: rootCert, intermediate: intCert, sign: sign}, nil
-}
-
-// TrustAnchor returns the certificate that relying parties should add to their
-// trust pool. For single-tier PKI this is the CA certificate; for two-tier PKI
-// this is the root CA certificate.
-func (o *Operator) TrustAnchor() *x509.Certificate {
-	return o.trustAnchor
-}
-
-// Intermediate returns the intermediate CA certificate for two-tier PKI, or
-// nil for single-tier PKI. It is needed when building chain bundles.
-func (o *Operator) Intermediate() *x509.Certificate {
-	return o.intermediate
+	return authority, nil
 }
 
 // DistributeTrustAnchor writes the trust anchor certificate to destPath so
 // relying parties can load it into their trust pool.
-func (o *Operator) DistributeTrustAnchor(destPath string) error {
-	return WriteCert(destPath, o.trustAnchor)
+func DistributeTrustAnchor(destPath string, trustAnchor *x509.Certificate) error {
+	return WriteCert(destPath, trustAnchor)
 }
 
-// SignServerCert issues a leaf certificate with ServerAuth EKU, the supplied
-// DNS SANs, and loopback IP SANs.
-func (o *Operator) SignServerCert(cn string, dnsNames []string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-	profile := ca.LeafProfile{
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		DNSNames:    dnsNames,
-		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
-	}
-	return ca.GenerateLeafCertificateAndKey(o.sign, cn, profile)
-}
-
-// SignClientCert issues a leaf certificate with ClientAuth EKU and loopback
-// IP SANs.
-func (o *Operator) SignClientCert(cn string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-	profile := ca.LeafProfile{
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
-	}
-	return ca.GenerateLeafCertificateAndKey(o.sign, cn, profile)
-}
-
-// SignClientCertForKey issues a ClientAuth certificate for an externally
-// provided public key, such as a TPM-backed key that never leaves its provider.
-func (o *Operator) SignClientCertForKey(pub crypto.PublicKey, cn string) (*x509.Certificate, error) {
-	profile := ca.LeafProfile{
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
-	}
-	return o.sign(pub, cn, profile)
-}
-
-// WriteChain writes the leaf certificate to path. When the operator has an
-// intermediate CA, it appends the intermediate certificate to form a chain
-// bundle (leaf + intermediate), which is the standard format for TLS
-// presentation.
-func (o *Operator) WriteChain(path string, leaf *x509.Certificate) error {
-	if o.intermediate != nil {
-		return WriteChainBundle(path, leaf, o.intermediate)
+// WriteChain writes the leaf certificate to path. When intermediate is present,
+// it appends the intermediate certificate to form a standard chain bundle.
+func WriteChain(path string, leaf *x509.Certificate, intermediate *x509.Certificate) error {
+	if intermediate != nil {
+		return WriteChainBundle(path, leaf, intermediate)
 	}
 	return WriteCert(path, leaf)
+}
+
+// WriteIdentity writes a leaf certificate and its private key to disk.
+func WriteIdentity(certPath, keyPath string, cert *x509.Certificate, key *ecdsa.PrivateKey) error {
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		return fmt.Errorf("marshaling EC private key: %w", err)
+	}
+	if err := WriteCert(certPath, cert); err != nil {
+		return err
+	}
+	return WriteKey(keyPath, keyDER)
+}
+
+// WriteChainIdentity writes a leaf certificate chain and its private key to
+// disk. When intermediate is nil, the chain file contains only the leaf.
+func WriteChainIdentity(chainPath, keyPath string, leaf *x509.Certificate, key *ecdsa.PrivateKey, intermediate *x509.Certificate) error {
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		return fmt.Errorf("marshaling EC private key: %w", err)
+	}
+	if err := WriteChain(chainPath, leaf, intermediate); err != nil {
+		return err
+	}
+	return WriteKey(keyPath, keyDER)
 }
 
 // WriteCert writes a certificate to a PEM file, creating parent directories as needed.

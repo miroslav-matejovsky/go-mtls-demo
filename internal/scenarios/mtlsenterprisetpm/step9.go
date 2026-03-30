@@ -16,8 +16,8 @@ func step9Summary(state *demoState, opCfg OperatorConfig, serverCfg ServerConfig
 	fmt.Println("=== Step 9/9: Chain linkage summary and cleanup ===")
 	fmt.Println()
 
-	rootCert := state.operator.TrustAnchor()
-	intCert := state.operator.Intermediate()
+	rootCert := state.authority.TrustAnchor()
+	intCert := state.authority.Intermediate()
 
 	fmt.Println("Certificate chain (enterprise PKI + TPM-backed client key):")
 	fmt.Printf("  Root CA (SKID: %X)\n", rootCert.SubjectKeyId)

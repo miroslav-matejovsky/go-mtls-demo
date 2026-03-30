@@ -7,8 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/operator"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/client"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/operator"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/server"
 )
 
@@ -70,7 +71,7 @@ func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfi
 }
 
 type demoState struct {
-	operator  *Operator
+	authority *Authority
 	server    *http.Server
 	serverURL string
 	serverErr chan error
@@ -102,9 +103,9 @@ func (state *demoState) unexpectedServerError() error {
 	}
 }
 
-type Operator = operator.Operator
+type Authority = ca.Authority
 
-func NewOperator(cfg OperatorConfig) (*Operator, error) {
+func NewAuthority(cfg OperatorConfig) (*Authority, error) {
 	rootValidity, err := cfg.RootCA.ParseValidity()
 	if err != nil {
 		return nil, err

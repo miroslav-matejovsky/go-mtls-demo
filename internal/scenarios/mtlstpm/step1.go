@@ -3,7 +3,6 @@
 package mtlstpm
 
 import (
-	"crypto/x509"
 	"fmt"
 
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
@@ -17,31 +16,24 @@ func step1GenerateCAAndServer(state *demoState, opCfg OperatorConfig, serverCfg 
 	fmt.Printf("Server cert and CA distribution copy written to: %s\n", serverCfg.CertFile)
 	fmt.Println()
 
-	op, err := NewOperator(opCfg)
+	authority, err := NewAuthority(opCfg)
 	if err != nil {
 		return fmt.Errorf("error creating operator: %w", err)
 	}
-	serverCert, serverKey, err := op.SignServerCert(serverCfg.CN, nil)
+	serverCert, serverKey, err := authority.SignServerCert(serverCfg.CN, nil)
 	if err != nil {
 		return fmt.Errorf("error creating server certificate: %w", err)
 	}
-	serverKeyBytes, err := x509.MarshalECPrivateKey(serverKey)
-	if err != nil {
-		return fmt.Errorf("error marshaling server key: %w", err)
+	if err := operator.WriteIdentity(serverCfg.CertFile, serverCfg.KeyFile, serverCert, serverKey); err != nil {
+		return fmt.Errorf("error writing server credentials: %w", err)
 	}
-	if err := operator.WriteCert(serverCfg.CertFile, serverCert); err != nil {
-		return fmt.Errorf("error writing server certificate: %w", err)
-	}
-	if err := operator.WriteKey(serverCfg.KeyFile, serverKeyBytes); err != nil {
-		return fmt.Errorf("error writing server key: %w", err)
-	}
-	if err := op.DistributeTrustAnchor(serverCfg.CACertFile); err != nil {
+	if err := operator.DistributeTrustAnchor(serverCfg.CACertFile, authority.TrustAnchor()); err != nil {
 		return fmt.Errorf("error distributing CA cert to server: %w", err)
 	}
 
-	state.operator = op
+	state.authority = authority
 
-	ca.PrintCertificateInfo(op.TrustAnchor())
+	ca.PrintCertificateInfo(authority.TrustAnchor())
 	ca.PrintCertificateInfo(serverCert)
 	fmt.Printf("  [SERVER]   Certificate → %s\n", serverCfg.CertFile)
 	fmt.Printf("  [SERVER]   Private key  → %s\n", serverCfg.KeyFile)

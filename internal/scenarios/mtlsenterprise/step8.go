@@ -7,8 +7,8 @@ func step8InspectChain(state *demoState, opCfg OperatorConfig, serverCfg ServerC
 	fmt.Println("=== Step 8/8: Inspect certificate chain and file layout ===")
 	fmt.Println()
 
-	rootCert := state.operator.TrustAnchor()
-	intCert := state.operator.Intermediate()
+	rootCert := state.authority.TrustAnchor()
+	intCert := state.authority.Intermediate()
 
 	fmt.Println("Certificate chain (SKID → AKID linkage):")
 	fmt.Printf("  Root CA          SKID: %X\n", rootCert.SubjectKeyId)

@@ -1,7 +1,6 @@
 package mtlsenterprise
 
 import (
-	"crypto/x509"
 	"fmt"
 
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
@@ -13,22 +12,14 @@ func step4GenerateClientCert(state *demoState, clientCfg ClientConfig) error {
 	fmt.Println("=== Step 4/8: Generate client certificate (ClientAuth EKU) ===")
 	fmt.Println()
 
-	clientCert, clientKey, err := state.operator.SignClientCert(clientCfg.CN)
+	clientCert, clientKey, err := state.authority.SignClientCert(clientCfg.CN)
 	if err != nil {
 		return fmt.Errorf("error creating client certificate: %w", err)
 	}
-	clientKeyBytes, err := x509.MarshalECPrivateKey(clientKey)
-	if err != nil {
-		return fmt.Errorf("error marshaling client key: %w", err)
+	if err := operator.WriteChainIdentity(clientCfg.ChainFile, clientCfg.KeyFile, clientCert, clientKey, state.authority.Intermediate()); err != nil {
+		return fmt.Errorf("error writing client credentials: %w", err)
 	}
-
-	if err := state.operator.WriteChain(clientCfg.ChainFile, clientCert); err != nil {
-		return fmt.Errorf("error writing client chain bundle: %w", err)
-	}
-	if err := operator.WriteKey(clientCfg.KeyFile, clientKeyBytes); err != nil {
-		return fmt.Errorf("error writing client key: %w", err)
-	}
-	if err := state.operator.DistributeTrustAnchor(clientCfg.RootCertFile); err != nil {
+	if err := operator.DistributeTrustAnchor(clientCfg.RootCertFile, state.authority.TrustAnchor()); err != nil {
 		return fmt.Errorf("error distributing root CA to client: %w", err)
 	}
 

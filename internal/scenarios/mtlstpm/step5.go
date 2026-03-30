@@ -37,7 +37,7 @@ func step5StartServerAndMakeTrustedRequest(state *demoState, serverCfg ServerCon
 	fmt.Printf("[SERVER] Listening on %s\n", state.serverURL)
 	fmt.Println()
 
-	client, err := CreateClient(state.operator.TrustAnchor(), state.storeKey, state.storedClientCert)
+	client, err := CreateClient(state.authority.TrustAnchor(), state.storeKey, state.storedClientCert)
 	if err != nil {
 		return fmt.Errorf("error creating client: %w", err)
 	}

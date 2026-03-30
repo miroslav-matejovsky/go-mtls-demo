@@ -1,7 +1,6 @@
 package tlsfiles
 
 import (
-	"crypto/x509"
 	"fmt"
 
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
@@ -15,20 +14,13 @@ func step2GenerateServerCertificate(state *demoState, serverCfg ServerConfig) er
 	fmt.Println("The private key is generated locally and stays in the server's own directory.")
 	fmt.Println()
 
-	serverCert, serverPrivateKey, err := state.operator.SignServerCert(serverCfg.CN, nil)
+	serverCert, serverPrivateKey, err := state.authority.SignServerCert(serverCfg.CN, nil)
 	if err != nil {
 		return fmt.Errorf("error creating server certificate: %w", err)
 	}
 
-	serverKeyBytes, err := x509.MarshalECPrivateKey(serverPrivateKey)
-	if err != nil {
-		return fmt.Errorf("error marshaling server key: %w", err)
-	}
-	if err := operator.WriteCert(serverCfg.CertFile, serverCert); err != nil {
-		return fmt.Errorf("error writing server certificate: %w", err)
-	}
-	if err := operator.WriteKey(serverCfg.KeyFile, serverKeyBytes); err != nil {
-		return fmt.Errorf("error writing server key: %w", err)
+	if err := operator.WriteIdentity(serverCfg.CertFile, serverCfg.KeyFile, serverCert, serverPrivateKey); err != nil {
+		return fmt.Errorf("error writing server credentials: %w", err)
 	}
 
 	ca.PrintCertificateInfo(serverCert)

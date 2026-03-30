@@ -11,8 +11,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/operator"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/client"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/operator"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/server"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
 )
@@ -90,7 +91,7 @@ func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfi
 }
 
 type demoState struct {
-	operator         *Operator
+	authority        *Authority
 	provider         string
 	store            *tpm.CurrentUserStore
 	clientSigner     crypto.Signer
@@ -146,9 +147,9 @@ func closeDemoResources(state *demoState) error {
 	return nil
 }
 
-type Operator = operator.Operator
+type Authority = ca.Authority
 
-func NewOperator(cfg OperatorConfig) (*Operator, error) {
+func NewAuthority(cfg OperatorConfig) (*Authority, error) {
 	rootValidity, err := cfg.RootCA.ParseValidity()
 	if err != nil {
 		return nil, err

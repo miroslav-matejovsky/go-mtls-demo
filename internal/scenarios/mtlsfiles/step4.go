@@ -1,7 +1,6 @@
 package mtlsfiles
 
 import (
-	"crypto/x509"
 	"fmt"
 	"path/filepath"
 
@@ -24,19 +23,12 @@ func step4GenerateUntrustedClient(state *demoState, untrustedCfg UntrustedClient
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client certificate: %w", err)
 	}
-	untrustedKeyBytes, err := x509.MarshalECPrivateKey(untrustedClientKey)
-	if err != nil {
-		return fmt.Errorf("error marshaling untrusted client key: %w", err)
-	}
-	if err := operator.WriteCert(untrustedCfg.CertFile, untrustedClientCert); err != nil {
-		return fmt.Errorf("error writing untrusted client certificate: %w", err)
-	}
-	if err := operator.WriteKey(untrustedCfg.KeyFile, untrustedKeyBytes); err != nil {
-		return fmt.Errorf("error writing untrusted client key: %w", err)
+	if err := operator.WriteIdentity(untrustedCfg.CertFile, untrustedCfg.KeyFile, untrustedClientCert, untrustedClientKey); err != nil {
+		return fmt.Errorf("error writing untrusted client credentials: %w", err)
 	}
 	// The untrusted client still needs the server's CA cert to verify the server during
 	// the handshake — it's untrusted because its OWN cert is signed by a different CA.
-	if err := state.operator.DistributeTrustAnchor(untrustedCfg.CACertFile); err != nil {
+	if err := operator.DistributeTrustAnchor(untrustedCfg.CACertFile, state.authority.TrustAnchor()); err != nil {
 		return fmt.Errorf("error writing trusted CA cert to untrusted directory: %w", err)
 	}
 

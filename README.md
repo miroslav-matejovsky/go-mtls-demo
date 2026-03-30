@@ -26,7 +26,7 @@ mTLS (mutual)   Client ──── verify server cert ────► Server
 
 Use [docs/index.md](docs/index.md) as the main guide for how to read this repository as an implementation reference, from basic TLS through production-oriented mTLS patterns.
 
-Shared building blocks now live under `internal/ca`, `internal/operator`, `internal/client`, `internal/server`, and `internal/tpm`. The `ca` package provides pure PKI logic (no file writes); the `operator` package acts as a human operator and owns all file distribution. The scenario packages under `internal/scenarios/` remain the orchestration layer and adapt their scenario-specific config and step flow onto those shared helpers.
+Shared building blocks now live under `internal/ca`, `internal/operator`, `internal/client`, `internal/server`, and `internal/tpm`. The `ca` package now acts as the certificate-authority service layer: it owns trust anchors, intermediates, and certificate issuance. The `operator` package acts as the human/manual operations layer: it persists CA certificates, writes server/client credentials, builds chain bundles, and distributes trust anchors. The scenario packages under `internal/scenarios/` remain the orchestration layer and adapt their scenario-specific config and step flow onto those shared helpers.
 
 ## Running
 

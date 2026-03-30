@@ -180,7 +180,7 @@ signer, err := store.Generate(certtostore.GenerateOpts{
     Size:      256,
 })
 
-clientCert, err := state.operator.SignCertForKey(signer.Public(), clientCfg.CN)
+clientCert, err := state.authority.SignClientCertForKey(signer.Public(), clientCfg.CN)
 ```
 
 This is the right example when you want to keep client private keys outside normal file-based storage.

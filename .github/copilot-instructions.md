@@ -39,12 +39,12 @@ No linter is configured. No CI/CD pipeline exists.
 
 ## Architecture
 
-`internal/ca` is the shared certificate package. Shared runtime construction now lives in `internal/operator`, `internal/client`, `internal/server`, and `internal/tpm`, while the seven demo packages under `internal/scenarios/` remain the orchestration layer. Scenario-local adapter helpers (`NewOperator`, `CreateClient`, `CreateServer`) now live inside each scenario's `demo.go`, with `config.go` and `step*.go` files holding scenario-specific config and flow:
+`internal/ca` is the shared certificate package. Shared runtime construction now lives in `internal/operator`, `internal/client`, `internal/server`, and `internal/tpm`, while the seven demo packages under `internal/scenarios/` remain the orchestration layer. Scenario-local adapter helpers (`NewAuthority`, `CreateClient`, `CreateServer`) now live inside each scenario's `demo.go`, with `config.go` and `step*.go` files holding scenario-specific config and flow:
 
 ```
 internal/
-  ca/          – shared: pure PKI — CA + chain generation, PrintCertificateInfo, TLSVersionName, CertPoolFromCertificate, CertPoolFromFile. No file writes.
-  operator/    – shared: human operator — Operator type, NewSimple/NewEnterprise constructors, cert issuance methods, WriteCert, WriteKey, WriteChainBundle file helpers
+  ca/          – shared: CA service — trust anchors, intermediate CA construction, leaf issuance, PrintCertificateInfo, TLSVersionName, CertPoolFromCertificate, CertPoolFromFile. No file writes.
+  operator/    – shared: human operator — persists CA certs, writes cert/key artifacts, builds chain bundles, distributes trust anchors
   client/      – shared TLS client builders for memory, file, and signer-backed identities
   pwsh/        – PowerShell process helpers used for cleanup scripts
   server/      – shared TLS server builders for memory and file-backed scenarios
@@ -64,7 +64,7 @@ Each demo package keeps the same high-level responsibilities, but the constructo
 | File        | Role |
 |-------------|------|
 
-| `demo.go`   | `RunDemo()` plus scenario-local `NewOperator` / `CreateClient` / `CreateServer` helpers |
+| `demo.go`   | `RunDemo()` plus scenario-local `NewAuthority` / `CreateClient` / `CreateServer` helpers |
 | `config.go` | Scenario-specific config structs and TOML loaders |
 | `step*.go`  | Scenario step orchestration for the larger demos |
 
@@ -72,7 +72,7 @@ Each demo package keeps the same high-level responsibilities, but the constructo
 
 ## Key Conventions
 
-**`internal/ca` is the shared certificate package.** `ca.CreateCA`, `ca.CreateRootCA`, `ca.CreateLeafCertAndKey`, `ca.GenerateLeafCertificateAndKey`, `ca.PrintCertificateInfo`, `ca.TLSVersionName`, `ca.CertPoolFromCertificate`, and `ca.CertPoolFromFile` are the core shared exports. The `ca` package has no file writes — it is purely in-memory PKI logic. Demo packages import it as `"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"`. Certificates include SKID/AKID extensions and random serial numbers.
+**`internal/ca` is the shared certificate package.** `ca.Authority` is the CA service abstraction with `NewSimple(cfg)` / `NewEnterprise(cfg)` constructors and `TrustAnchor()`, `Intermediate()`, `SignServerCert()`, `SignClientCert()`, and `SignClientCertForKey()` methods. Lower-level builders like `ca.CreateCA`, `ca.CreateRootCA`, `ca.CreateLeafCertAndKey`, `ca.GenerateLeafCertificateAndKey`, `ca.PrintCertificateInfo`, `ca.TLSVersionName`, `ca.CertPoolFromCertificate`, and `ca.CertPoolFromFile` remain available for scenario-local or advanced flows. The `ca` package has no file writes. Demo packages import it as `"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"`. Certificates include SKID/AKID extensions and random serial numbers.
 
 **`signerFunc` / `ca.SignerFunc` closure pattern.** `ca.CreateCA()` returns a `SignerFunc` — a closure that signs leaf certificates with the CA's private key without exposing the key itself. Always pass this function through; never expose the raw CA key outside `internal/ca`.
 
@@ -110,7 +110,7 @@ Each demo package keeps the same high-level responsibilities, but the constructo
 
 **`internal/tpm` package.** Windows-only shared helpers for TPM detection, `CurrentUser\My` inspection, provider selection, key generation, certificate import, and runtime signer recovery.
 
-**`internal/operator` package.** Single `Operator` type with two constructors: `NewSimple(cfg)` for single-tier PKI and `NewEnterprise(cfg)` for two-tier PKI (root → intermediate → leaf). Both return `*Operator` with the same unified API: `TrustAnchor()`, `Intermediate()` (nil for single-tier), `DistributeTrustAnchor(path)`, `SignServerCert(cn, dnsNames)`, `SignClientCert(cn)`, `SignClientCertForKey(pub, cn)`, `WriteChain(path, leaf)`. Standalone file helpers: `WriteCert`, `WriteKey`, `WriteChainBundle`. All scenarios use `type Operator = operator.Operator` and `NewOperator()` in `demo.go`. Enterprise scenarios call `Intermediate()` for chain building and cert store operations; simple scenarios get `nil` from `Intermediate()` and `WriteChain` writes a leaf-only file.
+**`internal/operator` package.** Human/manual operations only. `NewSimple(cfg)` / `NewEnterprise(cfg)` create a `*ca.Authority` and persist the operator-managed CA certificates to disk. Standalone helpers cover manual distribution work: `WriteCert`, `WriteKey`, `WriteChainBundle`, `WriteIdentity`, `WriteChainIdentity`, `WriteChain`, and `DistributeTrustAnchor`. File-based scenarios use `type Authority = ca.Authority` and `NewAuthority()` in `demo.go`, then call `operator.*` helpers to persist or distribute the authority outputs.
 
 **`internal/client` package.** Shared TLS client constructors: `NewTLSFromMemory` for one-way TLS, `NewMTLSWithSigner` for mTLS (accepts any `crypto.Signer` — works for in-memory, software KSP, and TPM-backed keys), and `NewMTLSFromFiles` / `NewTLSFromFiles` for file-backed scenarios. Called from scenario-local `CreateClient` helpers in `demo.go`.
 

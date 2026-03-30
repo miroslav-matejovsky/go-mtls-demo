@@ -38,20 +38,11 @@ func step7UntrustedRequest(state *demoState, untrustedCfg UntrustedClientConfig)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client certificate: %w", err)
 	}
-	untrustedKeyBytes, err := x509.MarshalECPrivateKey(untrustedClientKey)
-	if err != nil {
-		return fmt.Errorf("error marshaling untrusted client key: %w", err)
-	}
-
-	// Write untrusted chain bundle (leaf + untrusted intermediate)
-	if err := operator.WriteChainBundle(untrustedCfg.ChainFile, untrustedClientCert, untrustedIntCert); err != nil {
-		return fmt.Errorf("error writing untrusted client chain bundle: %w", err)
-	}
-	if err := operator.WriteKey(untrustedCfg.KeyFile, untrustedKeyBytes); err != nil {
-		return fmt.Errorf("error writing untrusted client key: %w", err)
+	if err := operator.WriteChainIdentity(untrustedCfg.ChainFile, untrustedCfg.KeyFile, untrustedClientCert, untrustedClientKey, untrustedIntCert); err != nil {
+		return fmt.Errorf("error writing untrusted client credentials: %w", err)
 	}
 	// The untrusted client still needs the TRUSTED server's root CA to verify the server cert
-	if err := state.operator.DistributeTrustAnchor(untrustedCfg.RootCertFile); err != nil {
+	if err := operator.DistributeTrustAnchor(untrustedCfg.RootCertFile, state.authority.TrustAnchor()); err != nil {
 		return fmt.Errorf("error writing trusted root CA to untrusted directory: %w", err)
 	}
 
