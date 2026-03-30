@@ -13,6 +13,24 @@ import (
 
 var loopbackIPs = []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback}
 
+// CreateIntermediateCSR creates a CSR for an intermediate CA with a fresh ECDSA P-256 key.
+// The CSR carries only the Subject DN and public key — CA policy extensions
+// (IsCA, MaxPathLen, KeyUsage:CertSign) are NOT included because they are
+// applied by the root CA as signer policy, not by the requestor.
+func CreateIntermediateCSR(cn string) (*x509.CertificateRequest, *ecdsa.PrivateKey, error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate intermediate CA key: %w", err)
+	}
+	csr, err := createCSR(&x509.CertificateRequest{
+		Subject: pkix.Name{CommonName: cn},
+	}, key, "intermediate CA")
+	if err != nil {
+		return nil, nil, err
+	}
+	return csr, key, nil
+}
+
 // CreateServerCSR creates a server CSR and a fresh ECDSA P-256 private key.
 func CreateServerCSR(cn string, dnsNames []string) (*x509.CertificateRequest, *ecdsa.PrivateKey, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

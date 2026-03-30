@@ -36,7 +36,10 @@ type Authority struct {
 	// For simple PKI it equals trustAnchor; for enterprise PKI it is the intermediate.
 	issuingCert *x509.Certificate
 	caKey       *ecdsa.PrivateKey
-	validity    time.Duration
+	// rootKey is the root CA private key for enterprise PKI only (nil for simple PKI).
+	// It is used exclusively to sign intermediate CA CSRs via SignIntermediateCSR.
+	rootKey  *ecdsa.PrivateKey
+	validity time.Duration
 }
 
 // NewSimple creates a single-tier self-signed certificate authority service.
@@ -68,7 +71,7 @@ func NewEnterprise(cfg EnterpriseConfig) (*Authority, error) {
 		return nil, err
 	}
 
-	rootCert, intCert, intKey, err := newEnterpriseCA(cfg.RootCA.CN, cfg.RootCA.Validity, cfg.IntermediateCA.CN, cfg.IntermediateCA.Validity)
+	rootCert, rootKey, intCert, intKey, err := newEnterpriseCA(cfg.RootCA.CN, cfg.RootCA.Validity, cfg.IntermediateCA.CN, cfg.IntermediateCA.Validity)
 	if err != nil {
 		return nil, err
 	}
@@ -78,6 +81,7 @@ func NewEnterprise(cfg EnterpriseConfig) (*Authority, error) {
 		intermediate: intCert,
 		issuingCert:  intCert,
 		caKey:        intKey,
+		rootKey:      rootKey,
 		validity:     cfg.IntermediateCA.Validity,
 	}, nil
 }
@@ -93,6 +97,53 @@ func (a *Authority) TrustAnchor() *x509.Certificate {
 // nil for single-tier PKI.
 func (a *Authority) Intermediate() *x509.Certificate {
 	return a.intermediate
+}
+
+// SignIntermediateCSR issues an intermediate CA certificate from a CSR.
+// CA policy extensions (IsCA, MaxPathLen:0, KeyUsage:CertSign) are applied by
+// the root CA as signer policy — they are NOT taken from the CSR.
+// Returns an error if called on a simple (single-tier) Authority that has no root key.
+func (a *Authority) SignIntermediateCSR(req *x509.CertificateRequest, validity time.Duration) (*x509.Certificate, error) {
+	if a.rootKey == nil {
+		return nil, fmt.Errorf("signing intermediate CSR: root key is not available (only enterprise CA can sign intermediates)")
+	}
+	if req == nil {
+		return nil, fmt.Errorf("signing intermediate CSR: request is required")
+	}
+	if err := req.CheckSignature(); err != nil {
+		return nil, fmt.Errorf("signing intermediate CSR: invalid request signature: %w", err)
+	}
+	if validity <= 0 {
+		return nil, fmt.Errorf("signing intermediate CSR: validity must be greater than zero")
+	}
+
+	serial, err := randomSerial()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate intermediate CA serial: %w", err)
+	}
+	skid, err := computeSKID(req.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute intermediate CA SKID: %w", err)
+	}
+	// CA policy is applied here — not taken from the CSR.
+	template := &x509.Certificate{
+		SerialNumber:          serial,
+		Subject:               req.Subject,
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(validity),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		MaxPathLen:            0,
+		MaxPathLenZero:        true,
+		SubjectKeyId:          skid,
+		AuthorityKeyId:        a.trustAnchor.SubjectKeyId,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, template, a.trustAnchor, req.PublicKey, a.rootKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create intermediate CA certificate: %w", err)
+	}
+	return x509.ParseCertificate(certDER)
 }
 
 // SignServerCSR issues a server certificate from a CSR. SANs are copied from the
