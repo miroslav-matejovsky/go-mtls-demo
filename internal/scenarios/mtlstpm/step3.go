@@ -32,7 +32,13 @@ func step3GenerateClientKey(state *demoState, opCfg OperatorConfig, clientCfg Cl
 		return fmt.Errorf("error generating key in Windows cert store: %w", err)
 	}
 
-	clientCert, err := state.authority.SignClientCertForKey(signer.Public(), clientCfg.CN)
+	clientCSR, err := ca.CreateClientCSRForSigner(signer, clientCfg.CN)
+	if err != nil {
+		store.Close()
+		return fmt.Errorf("error creating client CSR: %w", err)
+	}
+
+	clientCert, err := state.authority.SignClientCSR(clientCSR)
 	if err != nil {
 		store.Close()
 		return fmt.Errorf("error signing client certificate: %w", err)

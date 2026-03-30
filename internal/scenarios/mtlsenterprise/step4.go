@@ -12,9 +12,13 @@ func step4GenerateClientCert(state *demoState, clientCfg ClientConfig) error {
 	fmt.Println("=== Step 4/8: Generate client certificate (ClientAuth EKU) ===")
 	fmt.Println()
 
-	clientCert, clientKey, err := state.authority.SignClientCert(clientCfg.CN)
+	clientCSR, clientKey, err := ca.CreateClientCSR(clientCfg.CN)
 	if err != nil {
-		return fmt.Errorf("error creating client certificate: %w", err)
+		return fmt.Errorf("error creating client CSR: %w", err)
+	}
+	clientCert, err := state.authority.SignClientCSR(clientCSR)
+	if err != nil {
+		return fmt.Errorf("error signing client certificate: %w", err)
 	}
 	if err := operator.WriteChainIdentity(clientCfg.ChainFile, clientCfg.KeyFile, clientCert, clientKey, state.authority.Intermediate()); err != nil {
 		return fmt.Errorf("error writing client credentials: %w", err)

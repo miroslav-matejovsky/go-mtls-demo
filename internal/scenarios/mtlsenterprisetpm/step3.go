@@ -14,9 +14,13 @@ func step3GenerateServerCert(state *demoState, serverCfg ServerConfig) error {
 	fmt.Println("=== Step 3/9: Generate Server Certificate ===")
 	fmt.Println()
 
-	serverCert, serverKey, err := state.authority.SignServerCert(serverCfg.CN, serverCfg.DNSNames)
+	serverCSR, serverKey, err := ca.CreateServerCSR(serverCfg.CN, serverCfg.DNSNames)
 	if err != nil {
-		return fmt.Errorf("error creating server certificate: %w", err)
+		return fmt.Errorf("error creating server CSR: %w", err)
+	}
+	serverCert, err := state.authority.SignServerCSR(serverCSR)
+	if err != nil {
+		return fmt.Errorf("error signing server certificate: %w", err)
 	}
 	if err := operator.WriteChainIdentity(serverCfg.ChainFile, serverCfg.KeyFile, serverCert, serverKey, state.authority.Intermediate()); err != nil {
 		return fmt.Errorf("error writing server credentials: %w", err)

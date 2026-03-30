@@ -14,7 +14,7 @@ func step4MakeRequest(state *demoState) error {
 	fmt.Println("Authentication: client verifies server cert → CA   |   server trusts any client.")
 	fmt.Println()
 
-	client, err := CreateClient(state.caCert)
+	client, err := CreateClient(state.authority.TrustAnchor())
 	if err != nil {
 		return fmt.Errorf("error creating client: %w", err)
 	}

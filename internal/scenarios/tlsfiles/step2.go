@@ -14,9 +14,13 @@ func step2GenerateServerCertificate(state *demoState, serverCfg ServerConfig) er
 	fmt.Println("The private key is generated locally and stays in the server's own directory.")
 	fmt.Println()
 
-	serverCert, serverPrivateKey, err := state.authority.SignServerCert(serverCfg.CN, nil)
+	serverCSR, serverPrivateKey, err := ca.CreateServerCSR(serverCfg.CN, nil)
 	if err != nil {
-		return fmt.Errorf("error creating server certificate: %w", err)
+		return fmt.Errorf("error creating server CSR: %w", err)
+	}
+	serverCert, err := state.authority.SignServerCSR(serverCSR)
+	if err != nil {
+		return fmt.Errorf("error signing server certificate: %w", err)
 	}
 
 	if err := operator.WriteIdentity(serverCfg.CertFile, serverCfg.KeyFile, serverCert, serverPrivateKey); err != nil {

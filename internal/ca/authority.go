@@ -90,24 +90,33 @@ func (a *Authority) Intermediate() *x509.Certificate {
 }
 
 // SignServerCert issues a leaf certificate with ServerAuth EKU, the supplied
-// DNS SANs, and loopback IP SANs.
+// DNS SANs, and loopback IP SANs. It is a compatibility wrapper over the CSR
+// flow; new callers should prefer CreateServerCSR + SignServerCSR.
 func (a *Authority) SignServerCert(cn string, dnsNames []string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-	profile := LeafProfile{
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		DNSNames:    dnsNames,
-		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+	csr, key, err := CreateServerCSR(cn, dnsNames)
+	if err != nil {
+		return nil, nil, err
 	}
-	return GenerateLeafCertificateAndKey(a.sign, cn, profile)
+	cert, err := a.SignServerCSR(csr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return cert, key, nil
 }
 
 // SignClientCert issues a leaf certificate with ClientAuth EKU and loopback IP
-// SANs.
+// SANs. It is a compatibility wrapper over the CSR flow; new callers should
+// prefer CreateClientCSR + SignClientCSR.
 func (a *Authority) SignClientCert(cn string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-	profile := LeafProfile{
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+	csr, key, err := CreateClientCSR(cn)
+	if err != nil {
+		return nil, nil, err
 	}
-	return GenerateLeafCertificateAndKey(a.sign, cn, profile)
+	cert, err := a.SignClientCSR(csr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return cert, key, nil
 }
 
 // SignClientCertForKey issues a ClientAuth certificate for an externally
@@ -118,6 +127,33 @@ func (a *Authority) SignClientCertForKey(pub crypto.PublicKey, cn string) (*x509
 		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 	}
 	return a.sign(pub, cn, profile)
+}
+
+// SignServerCSR issues a server certificate from a CSR. SANs are copied from the
+// request and ServerAuth EKU is applied by the CA.
+func (a *Authority) SignServerCSR(req *x509.CertificateRequest) (*x509.Certificate, error) {
+	return a.signRequest(req, x509.ExtKeyUsageServerAuth, "server")
+}
+
+// SignClientCSR issues a client certificate from a CSR. SANs are copied from the
+// request and ClientAuth EKU is applied by the CA.
+func (a *Authority) SignClientCSR(req *x509.CertificateRequest) (*x509.Certificate, error) {
+	return a.signRequest(req, x509.ExtKeyUsageClientAuth, "client")
+}
+
+func (a *Authority) signRequest(req *x509.CertificateRequest, eku x509.ExtKeyUsage, role string) (*x509.Certificate, error) {
+	if req == nil {
+		return nil, fmt.Errorf("signing %s CSR: request is required", role)
+	}
+	if err := req.CheckSignature(); err != nil {
+		return nil, fmt.Errorf("signing %s CSR: invalid request signature: %w", role, err)
+	}
+	profile := LeafProfile{
+		ExtKeyUsage: []x509.ExtKeyUsage{eku},
+		DNSNames:    req.DNSNames,
+		IPAddresses: req.IPAddresses,
+	}
+	return a.sign(req.PublicKey, req.Subject.CommonName, profile)
 }
 
 func validateCAConfig(role string, cfg CAConfig) error {

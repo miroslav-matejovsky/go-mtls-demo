@@ -30,13 +30,16 @@ func step7UntrustedRequest(state *demoState, untrustedCfg UntrustedClientConfig)
 		return fmt.Errorf("error creating untrusted intermediate CA: %w", err)
 	}
 
-	profile := ca.LeafProfile{
+	untrustedCSR, untrustedClientKey, err := ca.CreateClientCSR(untrustedCfg.CN)
+	if err != nil {
+		return fmt.Errorf("error creating untrusted client CSR: %w", err)
+	}
+	untrustedClientCert, err := untrustedSignLeaf(untrustedCSR.PublicKey, untrustedCSR.Subject.CommonName, ca.LeafProfile{
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
-	}
-	untrustedClientCert, untrustedClientKey, err := ca.GenerateLeafCertificateAndKey(untrustedSignLeaf, untrustedCfg.CN, profile)
+	})
 	if err != nil {
-		return fmt.Errorf("error creating untrusted client certificate: %w", err)
+		return fmt.Errorf("error signing untrusted client certificate: %w", err)
 	}
 	if err := operator.WriteChainIdentity(untrustedCfg.ChainFile, untrustedCfg.KeyFile, untrustedClientCert, untrustedClientKey, untrustedIntCert); err != nil {
 		return fmt.Errorf("error writing untrusted client credentials: %w", err)

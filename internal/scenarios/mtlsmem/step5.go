@@ -14,7 +14,7 @@ func step5MakeTrustedRequest(state *demoState) error {
 	fmt.Println("Authentication: client verifies server cert → CA   |   server verifies client cert → CA.")
 	fmt.Println()
 
-	client, err := CreateClient(state.caCert, state.clientPrivateKey, state.clientCert)
+	client, err := CreateClient(state.authority.TrustAnchor(), state.clientPrivateKey, state.clientCert)
 	if err != nil {
 		return fmt.Errorf("error creating client: %w", err)
 	}

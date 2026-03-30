@@ -20,9 +20,13 @@ func step1GenerateCAAndServer(state *demoState, opCfg OperatorConfig, serverCfg 
 	if err != nil {
 		return fmt.Errorf("error creating operator: %w", err)
 	}
-	serverCert, serverKey, err := authority.SignServerCert(serverCfg.CN, nil)
+	serverCSR, serverKey, err := ca.CreateServerCSR(serverCfg.CN, nil)
 	if err != nil {
-		return fmt.Errorf("error creating server certificate: %w", err)
+		return fmt.Errorf("error creating server CSR: %w", err)
+	}
+	serverCert, err := authority.SignServerCSR(serverCSR)
+	if err != nil {
+		return fmt.Errorf("error signing server certificate: %w", err)
 	}
 	if err := operator.WriteIdentity(serverCfg.CertFile, serverCfg.KeyFile, serverCert, serverKey); err != nil {
 		return fmt.Errorf("error writing server credentials: %w", err)

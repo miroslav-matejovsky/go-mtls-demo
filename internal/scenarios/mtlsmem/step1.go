@@ -14,14 +14,16 @@ func step1GenerateCA(state *demoState) error {
 	fmt.Println("Both parties trust this CA and will accept any certificate it has signed.")
 	fmt.Println()
 
-	caCert, signLeaf, err := ca.CreateCA("go mTLS Demo CA", 24*time.Hour)
+	authority, err := ca.NewSimple(ca.CAConfig{
+		CN:       "go mTLS Demo CA",
+		Validity: 24 * time.Hour,
+	})
 	if err != nil {
 		return fmt.Errorf("error creating CA: %w", err)
 	}
 
-	state.caCert = caCert
-	state.signLeaf = signLeaf
+	state.authority = authority
 
-	ca.PrintCertificateInfo(caCert)
+	ca.PrintCertificateInfo(authority.TrustAnchor())
 	return nil
 }

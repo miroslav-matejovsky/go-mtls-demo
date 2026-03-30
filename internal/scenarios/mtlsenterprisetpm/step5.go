@@ -15,7 +15,11 @@ func step5SignClientCert(state *demoState, clientCfg ClientConfig) error {
 	fmt.Println("The intermediate CA issues a ClientAuth leaf cert for the TPM-backed public key.")
 	fmt.Println()
 
-	clientCert, err := state.authority.SignClientCertForKey(state.clientSigner.Public(), clientCfg.CN)
+	clientCSR, err := ca.CreateClientCSRForSigner(state.clientSigner, clientCfg.CN)
+	if err != nil {
+		return fmt.Errorf("error creating client CSR: %w", err)
+	}
+	clientCert, err := state.authority.SignClientCSR(clientCSR)
 	if err != nil {
 		return fmt.Errorf("error signing client certificate: %w", err)
 	}

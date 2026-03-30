@@ -13,9 +13,13 @@ func step3GenerateClientCertificate(state *demoState) error {
 	fmt.Println("The server will require this certificate and verify it against the trusted CA.")
 	fmt.Println()
 
-	clientCert, clientPrivateKey, err := ca.CreateLeafCertAndKey(state.signLeaf, "go mTLS Demo Client")
+	clientCSR, clientPrivateKey, err := ca.CreateClientCSR("go mTLS Demo Client")
 	if err != nil {
-		return fmt.Errorf("error creating client certificate: %w", err)
+		return fmt.Errorf("error creating client CSR: %w", err)
+	}
+	clientCert, err := state.authority.SignClientCSR(clientCSR)
+	if err != nil {
+		return fmt.Errorf("error signing client certificate: %w", err)
 	}
 
 	state.clientCert = clientCert

@@ -42,9 +42,13 @@ func step1GenerateCertificates(state *demoState, opCfg OperatorConfig, serverCfg
 	fmt.Println("  [OPERATOR] Private key stays on the CA machine — NOT written to disk here.")
 	fmt.Println()
 
-	serverCert, serverPrivateKey, err := authority.SignServerCert(serverCfg.CN, nil)
+	serverCSR, serverPrivateKey, err := ca.CreateServerCSR(serverCfg.CN, nil)
 	if err != nil {
-		return fmt.Errorf("error creating server certificate: %w", err)
+		return fmt.Errorf("error creating server CSR: %w", err)
+	}
+	serverCert, err := authority.SignServerCSR(serverCSR)
+	if err != nil {
+		return fmt.Errorf("error signing server certificate: %w", err)
 	}
 	if err := operator.WriteIdentity(serverCfg.CertFile, serverCfg.KeyFile, serverCert, serverPrivateKey); err != nil {
 		return fmt.Errorf("error writing server credentials: %w", err)
@@ -55,9 +59,13 @@ func step1GenerateCertificates(state *demoState, opCfg OperatorConfig, serverCfg
 	fmt.Printf("  [SERVER] Private key  → %s\n", serverCfg.KeyFile)
 	fmt.Println()
 
-	clientCert, clientPrivateKey, err := authority.SignClientCert(clientCfg.CN)
+	clientCSR, clientPrivateKey, err := ca.CreateClientCSR(clientCfg.CN)
 	if err != nil {
-		return fmt.Errorf("error creating client certificate: %w", err)
+		return fmt.Errorf("error creating client CSR: %w", err)
+	}
+	clientCert, err := authority.SignClientCSR(clientCSR)
+	if err != nil {
+		return fmt.Errorf("error signing client certificate: %w", err)
 	}
 	if err := operator.WriteIdentity(clientCfg.CertFile, clientCfg.KeyFile, clientCert, clientPrivateKey); err != nil {
 		return fmt.Errorf("error writing client credentials: %w", err)

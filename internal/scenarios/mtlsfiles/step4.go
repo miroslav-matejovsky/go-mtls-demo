@@ -15,13 +15,20 @@ func step4GenerateUntrustedClient(state *demoState, untrustedCfg UntrustedClient
 	fmt.Printf("Untrusted client files written to: %s\n", filepath.Dir(untrustedCfg.CertFile))
 	fmt.Println()
 
-	_, untrustedSignLeaf, err := ca.CreateCA(untrustedCfg.CACN, state.validity)
+	untrustedAuthority, err := ca.NewSimple(ca.CAConfig{
+		CN:       untrustedCfg.CACN,
+		Validity: state.validity,
+	})
 	if err != nil {
 		return fmt.Errorf("error creating untrusted CA: %w", err)
 	}
-	untrustedClientCert, untrustedClientKey, err := ca.CreateLeafCertAndKey(untrustedSignLeaf, untrustedCfg.CN)
+	untrustedCSR, untrustedClientKey, err := ca.CreateClientCSR(untrustedCfg.CN)
 	if err != nil {
-		return fmt.Errorf("error creating untrusted client certificate: %w", err)
+		return fmt.Errorf("error creating untrusted client CSR: %w", err)
+	}
+	untrustedClientCert, err := untrustedAuthority.SignClientCSR(untrustedCSR)
+	if err != nil {
+		return fmt.Errorf("error signing untrusted client certificate: %w", err)
 	}
 	if err := operator.WriteIdentity(untrustedCfg.CertFile, untrustedCfg.KeyFile, untrustedClientCert, untrustedClientKey); err != nil {
 		return fmt.Errorf("error writing untrusted client credentials: %w", err)

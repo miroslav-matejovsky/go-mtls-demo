@@ -23,13 +23,20 @@ func step6DemonstrateUntrustedClient(state *demoState, opCfg OperatorConfig, unt
 	if err != nil {
 		return err
 	}
-	_, untrustedSign, err := ca.CreateCA(untrustedCfg.CACN, validity)
+	untrustedAuthority, err := ca.NewSimple(ca.CAConfig{
+		CN:       untrustedCfg.CACN,
+		Validity: validity,
+	})
 	if err != nil {
 		return fmt.Errorf("error creating untrusted CA: %w", err)
 	}
-	untrustedCert, untrustedKey, err := ca.CreateLeafCertAndKey(untrustedSign, untrustedCfg.CN)
+	untrustedCSR, untrustedKey, err := ca.CreateClientCSR(untrustedCfg.CN)
 	if err != nil {
-		return fmt.Errorf("error creating untrusted client certificate: %w", err)
+		return fmt.Errorf("error creating untrusted client CSR: %w", err)
+	}
+	untrustedCert, err := untrustedAuthority.SignClientCSR(untrustedCSR)
+	if err != nil {
+		return fmt.Errorf("error signing untrusted client certificate: %w", err)
 	}
 
 	// The untrusted client still uses the trusted CA cert to verify the server —
