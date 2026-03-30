@@ -3,7 +3,9 @@ package ca
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"fmt"
 	"net"
 	"time"
@@ -24,12 +26,17 @@ type EnterpriseConfig struct {
 }
 
 // Authority represents an in-memory certificate authority service that can
-// issue server and client leaf certificates. For enterprise PKI it exposes the
-// trust anchor and intermediate separately so operators can distribute them.
+// issue server and client leaf certificates via CSRs. For enterprise PKI it
+// exposes the trust anchor and intermediate separately so operators can
+// distribute them.
 type Authority struct {
 	trustAnchor  *x509.Certificate
 	intermediate *x509.Certificate
-	sign         ProfiledSignerFunc
+	// issuingCert is the certificate used to sign leaf certificates.
+	// For simple PKI it equals trustAnchor; for enterprise PKI it is the intermediate.
+	issuingCert *x509.Certificate
+	caKey       *ecdsa.PrivateKey
+	validity    time.Duration
 }
 
 // NewSimple creates a single-tier self-signed certificate authority service.
@@ -38,14 +45,16 @@ func NewSimple(cfg CAConfig) (*Authority, error) {
 		return nil, err
 	}
 
-	cert, sign, err := CreateProfiledCA(cfg.CN, cfg.Validity)
+	cert, key, err := newSimpleCA(cfg.CN, cfg.Validity)
 	if err != nil {
 		return nil, fmt.Errorf("creating simple CA: %w", err)
 	}
 
 	return &Authority{
 		trustAnchor: cert,
-		sign:        sign,
+		issuingCert: cert,
+		caKey:       key,
+		validity:    cfg.Validity,
 	}, nil
 }
 
@@ -59,20 +68,17 @@ func NewEnterprise(cfg EnterpriseConfig) (*Authority, error) {
 		return nil, err
 	}
 
-	rootCert, signIntermediate, err := CreateRootCA(cfg.RootCA.CN, cfg.RootCA.Validity)
+	rootCert, intCert, intKey, err := newEnterpriseCA(cfg.RootCA.CN, cfg.RootCA.Validity, cfg.IntermediateCA.CN, cfg.IntermediateCA.Validity)
 	if err != nil {
-		return nil, fmt.Errorf("creating root CA: %w", err)
-	}
-
-	intCert, sign, err := signIntermediate(cfg.IntermediateCA.CN, cfg.IntermediateCA.Validity)
-	if err != nil {
-		return nil, fmt.Errorf("creating intermediate CA: %w", err)
+		return nil, err
 	}
 
 	return &Authority{
 		trustAnchor:  rootCert,
 		intermediate: intCert,
-		sign:         sign,
+		issuingCert:  intCert,
+		caKey:        intKey,
+		validity:     cfg.IntermediateCA.Validity,
 	}, nil
 }
 
@@ -89,46 +95,6 @@ func (a *Authority) Intermediate() *x509.Certificate {
 	return a.intermediate
 }
 
-// SignServerCert issues a leaf certificate with ServerAuth EKU, the supplied
-// DNS SANs, and loopback IP SANs. It is a compatibility wrapper over the CSR
-// flow; new callers should prefer CreateServerCSR + SignServerCSR.
-func (a *Authority) SignServerCert(cn string, dnsNames []string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-	csr, key, err := CreateServerCSR(cn, dnsNames)
-	if err != nil {
-		return nil, nil, err
-	}
-	cert, err := a.SignServerCSR(csr)
-	if err != nil {
-		return nil, nil, err
-	}
-	return cert, key, nil
-}
-
-// SignClientCert issues a leaf certificate with ClientAuth EKU and loopback IP
-// SANs. It is a compatibility wrapper over the CSR flow; new callers should
-// prefer CreateClientCSR + SignClientCSR.
-func (a *Authority) SignClientCert(cn string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-	csr, key, err := CreateClientCSR(cn)
-	if err != nil {
-		return nil, nil, err
-	}
-	cert, err := a.SignClientCSR(csr)
-	if err != nil {
-		return nil, nil, err
-	}
-	return cert, key, nil
-}
-
-// SignClientCertForKey issues a ClientAuth certificate for an externally
-// provided public key, such as a TPM-backed key that never leaves its provider.
-func (a *Authority) SignClientCertForKey(pub crypto.PublicKey, cn string) (*x509.Certificate, error) {
-	profile := LeafProfile{
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
-	}
-	return a.sign(pub, cn, profile)
-}
-
 // SignServerCSR issues a server certificate from a CSR. SANs are copied from the
 // request and ServerAuth EKU is applied by the CA.
 func (a *Authority) SignServerCSR(req *x509.CertificateRequest) (*x509.Certificate, error) {
@@ -141,6 +107,12 @@ func (a *Authority) SignClientCSR(req *x509.CertificateRequest) (*x509.Certifica
 	return a.signRequest(req, x509.ExtKeyUsageClientAuth, "client")
 }
 
+// SignClientCertForKey issues a ClientAuth certificate for an externally
+// provided public key, such as a TPM-backed key that never leaves its provider.
+func (a *Authority) SignClientCertForKey(pub crypto.PublicKey, cn string) (*x509.Certificate, error) {
+	return a.signPublicKey(pub, cn, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, nil, []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback})
+}
+
 func (a *Authority) signRequest(req *x509.CertificateRequest, eku x509.ExtKeyUsage, role string) (*x509.Certificate, error) {
 	if req == nil {
 		return nil, fmt.Errorf("signing %s CSR: request is required", role)
@@ -148,12 +120,35 @@ func (a *Authority) signRequest(req *x509.CertificateRequest, eku x509.ExtKeyUsa
 	if err := req.CheckSignature(); err != nil {
 		return nil, fmt.Errorf("signing %s CSR: invalid request signature: %w", role, err)
 	}
-	profile := LeafProfile{
-		ExtKeyUsage: []x509.ExtKeyUsage{eku},
-		DNSNames:    req.DNSNames,
-		IPAddresses: req.IPAddresses,
+	return a.signPublicKey(req.PublicKey, req.Subject.CommonName, []x509.ExtKeyUsage{eku}, req.DNSNames, req.IPAddresses)
+}
+
+func (a *Authority) signPublicKey(pub crypto.PublicKey, cn string, ekus []x509.ExtKeyUsage, dnsNames []string, ipAddresses []net.IP) (*x509.Certificate, error) {
+	serial, err := randomSerial()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate leaf serial: %w", err)
 	}
-	return a.sign(req.PublicKey, req.Subject.CommonName, profile)
+	skid, err := computeSKID(pub)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute leaf SKID: %w", err)
+	}
+	template := &x509.Certificate{
+		SerialNumber:   serial,
+		Subject:        pkix.Name{CommonName: cn},
+		NotBefore:      time.Now().Add(-time.Hour),
+		NotAfter:       time.Now().Add(a.validity),
+		ExtKeyUsage:    ekus,
+		KeyUsage:       x509.KeyUsageDigitalSignature,
+		DNSNames:       dnsNames,
+		IPAddresses:    ipAddresses,
+		SubjectKeyId:   skid,
+		AuthorityKeyId: a.issuingCert.SubjectKeyId,
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, template, a.issuingCert, pub, a.caKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create certificate: %w", err)
+	}
+	return x509.ParseCertificate(certDER)
 }
 
 func validateCAConfig(role string, cfg CAConfig) error {

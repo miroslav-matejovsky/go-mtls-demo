@@ -6,7 +6,7 @@ Windows-only demo combining **enterprise PKI topology** (Root CA → Intermediat
 
 | Feature | Source |
 |---------|--------|
-| 3-tier certificate hierarchy | `internal/pki.CreateRootCA` → `SignIntermediateFunc` → `ProfiledSignerFunc` |
+| 3-tier certificate hierarchy | `ca.NewEnterprise` → `SignServerCSR` / `SignClientCSR` |
 | Role-specific EKU | ServerAuth for server, ClientAuth for client |
 | SKID/AKID chain linkage | Verified in step 2 and summarised in step 9 |
 | TPM-backed client key | `certtostore.OpenWinCertStoreCurrentUser` + `Generate` |

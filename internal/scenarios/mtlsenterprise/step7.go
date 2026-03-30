@@ -1,9 +1,7 @@
 package mtlsenterprise
 
 import (
-	"crypto/x509"
 	"fmt"
-	"net"
 	"time"
 
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
@@ -20,28 +18,24 @@ func step7UntrustedRequest(state *demoState, untrustedCfg UntrustedClientConfig)
 	fmt.Println("This client's certificate chain originates from a completely different root CA.")
 	fmt.Println()
 
-	// Build an entirely separate PKI: root → intermediate → client leaf
-	_, untrustedSignInt, err := ca.CreateRootCA(untrustedCfg.RootCACN, 24*time.Hour)
+	// Build an entirely separate enterprise PKI for the untrusted client.
+	untrustedAuthority, err := ca.NewEnterprise(ca.EnterpriseConfig{
+		RootCA:         ca.CAConfig{CN: untrustedCfg.RootCACN, Validity: 24 * time.Hour},
+		IntermediateCA: ca.CAConfig{CN: untrustedCfg.IntermediateCACN, Validity: 24 * time.Hour},
+	})
 	if err != nil {
-		return fmt.Errorf("error creating untrusted root CA: %w", err)
-	}
-	untrustedIntCert, untrustedSignLeaf, err := untrustedSignInt(untrustedCfg.IntermediateCACN, 24*time.Hour)
-	if err != nil {
-		return fmt.Errorf("error creating untrusted intermediate CA: %w", err)
+		return fmt.Errorf("error creating untrusted enterprise CA: %w", err)
 	}
 
 	untrustedCSR, untrustedClientKey, err := ca.CreateClientCSR(untrustedCfg.CN)
 	if err != nil {
 		return fmt.Errorf("error creating untrusted client CSR: %w", err)
 	}
-	untrustedClientCert, err := untrustedSignLeaf(untrustedCSR.PublicKey, untrustedCSR.Subject.CommonName, ca.LeafProfile{
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
-	})
+	untrustedClientCert, err := untrustedAuthority.SignClientCSR(untrustedCSR)
 	if err != nil {
 		return fmt.Errorf("error signing untrusted client certificate: %w", err)
 	}
-	if err := operator.WriteChainIdentity(untrustedCfg.ChainFile, untrustedCfg.KeyFile, untrustedClientCert, untrustedClientKey, untrustedIntCert); err != nil {
+	if err := operator.WriteChainIdentity(untrustedCfg.ChainFile, untrustedCfg.KeyFile, untrustedClientCert, untrustedClientKey, untrustedAuthority.Intermediate()); err != nil {
 		return fmt.Errorf("error writing untrusted client credentials: %w", err)
 	}
 	// The untrusted client still needs the TRUSTED server's root CA to verify the server cert

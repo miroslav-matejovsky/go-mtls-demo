@@ -122,22 +122,20 @@ For many real services, this is the best baseline to adapt first.
 - **Role-specific EKU**: server certs get only `ServerAuth`, client certs get only `ClientAuth`
 - **Chain bundles**: leaf + intermediate packed into a single PEM file for TLS presentation
 
-Operator pattern — building the PKI hierarchy:
+Operator pattern — building the PKI hierarchy via `ca.NewEnterprise`:
 
 ```go
-rootCert, signIntermediate, err := pki.CreateRootCA(cn, validity)
-intCert, signLeaf, err := signIntermediate(intCN, intValidity)
+authority, err := ca.NewEnterprise(ca.EnterpriseConfig{
+    RootCA:         ca.CAConfig{CN: rootCN, Validity: rootValidity},
+    IntermediateCA: ca.CAConfig{CN: intCN, Validity: intValidity},
+})
 ```
 
-Issuing profiled leaf certificates:
+Issuing profiled leaf certificates via CSR:
 
 ```go
-profile := pki.LeafProfile{
-    ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-    DNSNames:    dnsNames,
-    IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1)},
-}
-serverCert, serverKey, err := pki.GenerateLeafCertificateAndKey(signLeaf, cn, profile)
+serverCSR, serverKey, err := ca.CreateServerCSR(cn, dnsNames)
+serverCert, err := authority.SignServerCSR(serverCSR)
 ```
 
 Chain bundle loading — both server and client load their chain bundle (leaf + intermediate) the same way:

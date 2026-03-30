@@ -84,10 +84,10 @@ That split is worth preserving in real applications too.
 
 ## Keep CA private keys behind a narrow interface
 
-The shared certificate package exposes certificate issuance through a signing closure:
+The shared certificate package exposes certificate issuance through the `Authority` type:
 
 ```go
-type SignerFunc func(pub crypto.PublicKey, cn string) (*x509.Certificate, error)
+authority, err := ca.NewSimple(ca.CAConfig{CN: "Demo CA", Validity: 24 * time.Hour})
 ```
 
 That is a good design rule:
@@ -95,6 +95,10 @@ That is a good design rule:
 - do not let the whole application manipulate CA private keys directly
 - keep issuing authority behind a narrow interface
 - make it easier to replace in-memory demo issuance with a more realistic issuer later
+
+The `Authority` type holds the CA private key internally and never exposes it. All leaf
+certificate issuance goes through CSR-based methods (`SignServerCSR`, `SignClientCSR`) or
+`SignClientCertForKey` for hardware-backed keys that cannot be exported.
 
 ## Trust issuers, not random individual leaf certificates
 

@@ -1,48 +1,41 @@
 package ca
 
 import (
-	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
-	"net"
 	"time"
 )
 
-// SignerFunc signs a public key with the given CN and returns a leaf certificate.
-type SignerFunc func(pub crypto.PublicKey, cn string) (*x509.Certificate, error)
-
-// CreateCA creates a self-signed CA certificate with the given common name and validity duration.
-// The same validity is applied to any leaf certificates signed by the returned SignerFunc.
-// It returns the CA certificate and a SignerFunc closure for issuing leaf certificates.
-func CreateCA(cn string, validity time.Duration) (*x509.Certificate, SignerFunc, error) {
+// newSimpleCA creates a self-signed CA certificate and returns the certificate
+// and private key. Used internally by NewSimple.
+func newSimpleCA(cn string, validity time.Duration) (*x509.Certificate, *ecdsa.PrivateKey, error) {
 	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate CA key: %w", err)
 	}
-	caSerial, err := randomSerial()
+	serial, err := randomSerial()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate CA serial: %w", err)
 	}
-	caSKID, err := computeSKID(&caKey.PublicKey)
+	skid, err := computeSKID(&caKey.PublicKey)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to compute CA SKID: %w", err)
 	}
-	caTemplate := &x509.Certificate{
-		SerialNumber:          caSerial,
+	template := &x509.Certificate{
+		SerialNumber:          serial,
 		Subject:               pkix.Name{CommonName: cn},
 		NotBefore:             time.Now().Add(-time.Hour),
 		NotAfter:              time.Now().Add(validity),
 		IsCA:                  true,
 		BasicConstraintsValid: true,
-		SubjectKeyId:          caSKID,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		SubjectKeyId:          skid,
 		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
 	}
-	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	caDER, err := x509.CreateCertificate(rand.Reader, template, template, &caKey.PublicKey, caKey)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create CA certificate: %w", err)
 	}
@@ -50,119 +43,5 @@ func CreateCA(cn string, validity time.Duration) (*x509.Certificate, SignerFunc,
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse CA certificate: %w", err)
 	}
-	signLeaf := func(pub crypto.PublicKey, cn string) (*x509.Certificate, error) {
-		leafSerial, err := randomSerial()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate leaf serial: %w", err)
-		}
-		leafSKID, err := computeSKID(pub)
-		if err != nil {
-			return nil, fmt.Errorf("failed to compute leaf SKID: %w", err)
-		}
-		certTemplate := &x509.Certificate{
-			SerialNumber:   leafSerial,
-			Subject:        pkix.Name{CommonName: cn},
-			NotBefore:      time.Now().Add(-time.Hour),
-			NotAfter:       time.Now().Add(validity),
-			ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-			KeyUsage:       x509.KeyUsageDigitalSignature,
-			IPAddresses:    []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
-			SubjectKeyId:   leafSKID,
-			AuthorityKeyId: caCert.SubjectKeyId,
-		}
-		certDER, err := x509.CreateCertificate(rand.Reader, certTemplate, caCert, pub, caKey)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create certificate: %w", err)
-		}
-		cert, err := x509.ParseCertificate(certDER)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse certificate: %w", err)
-		}
-		return cert, nil
-	}
-	return caCert, signLeaf, nil
-}
-
-// CreateProfiledCA creates a self-signed CA and returns a ProfiledSignerFunc for
-// issuing leaf certificates with role-specific EKU and SANs via LeafProfile.
-// Unlike CreateCA, it enforces the caller-supplied profile on every leaf rather
-// than hardcoding both ServerAuth and ClientAuth EKUs.
-func CreateProfiledCA(cn string, validity time.Duration) (*x509.Certificate, ProfiledSignerFunc, error) {
-	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate CA key: %w", err)
-	}
-	caSerial, err := randomSerial()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate CA serial: %w", err)
-	}
-	caSKID, err := computeSKID(&caKey.PublicKey)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to compute CA SKID: %w", err)
-	}
-	caTemplate := &x509.Certificate{
-		SerialNumber:          caSerial,
-		Subject:               pkix.Name{CommonName: cn},
-		NotBefore:             time.Now().Add(-time.Hour),
-		NotAfter:              time.Now().Add(validity),
-		IsCA:                  true,
-		BasicConstraintsValid: true,
-		SubjectKeyId:          caSKID,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
-	}
-	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create CA certificate: %w", err)
-	}
-	caCert, err := x509.ParseCertificate(caDER)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse CA certificate: %w", err)
-	}
-	profiledSign := func(pub crypto.PublicKey, cn string, profile LeafProfile) (*x509.Certificate, error) {
-		leafSerial, err := randomSerial()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate leaf serial: %w", err)
-		}
-		leafSKID, err := computeSKID(pub)
-		if err != nil {
-			return nil, fmt.Errorf("failed to compute leaf SKID: %w", err)
-		}
-		leafTemplate := &x509.Certificate{
-			SerialNumber:   leafSerial,
-			Subject:        pkix.Name{CommonName: cn},
-			NotBefore:      time.Now().Add(-time.Hour),
-			NotAfter:       time.Now().Add(validity),
-			ExtKeyUsage:    profile.ExtKeyUsage,
-			KeyUsage:       x509.KeyUsageDigitalSignature,
-			DNSNames:       profile.DNSNames,
-			IPAddresses:    profile.IPAddresses,
-			SubjectKeyId:   leafSKID,
-			AuthorityKeyId: caCert.SubjectKeyId,
-		}
-		certDER, err := x509.CreateCertificate(rand.Reader, leafTemplate, caCert, pub, caKey)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create certificate: %w", err)
-		}
-		cert, err := x509.ParseCertificate(certDER)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse certificate: %w", err)
-		}
-		return cert, nil
-	}
-	return caCert, profiledSign, nil
-}
-
-// CreateLeafCertAndKey generates a new ECDSA P-256 key and issues a leaf
-// certificate via the given SignerFunc.
-func CreateLeafCertAndKey(signLeaf SignerFunc, cn string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
-	leafKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate leaf key: %w", err)
-	}
-	leafCert, err := signLeaf(&leafKey.PublicKey, cn)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create leaf certificate: %w", err)
-	}
-	return leafCert, leafKey, nil
+	return caCert, caKey, nil
 }
