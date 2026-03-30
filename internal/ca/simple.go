@@ -1,4 +1,4 @@
-package pki
+package ca
 
 import (
 	"crypto"
@@ -39,12 +39,8 @@ func CreateCA(cn string, validity time.Duration) (*x509.Certificate, SignerFunc,
 		IsCA:                  true,
 		BasicConstraintsValid: true,
 		SubjectKeyId:          caSKID,
-		// ExtKeyUsageClientAuth - allows the certificate to be used for client authentication in TLS
-		// ExtKeyUsageServerAuth - allows the certificate to be used for server authentication in TLS
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		// KeyUsageCertSign - allows the certificate to be used for signing other certificates (i.e. as a CA)
-		// KeyUsageCRLSign - allows the certificate to be used for signing Certificate Revocation Lists (CRLs)
-		KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
 	}
 	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
 	if err != nil {
@@ -157,7 +153,8 @@ func CreateProfiledCA(cn string, validity time.Duration) (*x509.Certificate, Pro
 	return caCert, profiledSign, nil
 }
 
-
+// CreateLeafCertAndKey generates a new ECDSA P-256 key and issues a leaf
+// certificate via the given SignerFunc.
 func CreateLeafCertAndKey(signLeaf SignerFunc, cn string) (*x509.Certificate, *ecdsa.PrivateKey, error) {
 	leafKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {

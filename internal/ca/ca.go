@@ -1,7 +1,8 @@
-// Package pki provides low-level certificate generation and file helpers shared
-// across all demo scenarios. It handles CA creation, leaf certificate issuance
-// via closure-based signers, PEM encoding, and certificate inspection utilities.
-package pki
+// Package ca provides pure certificate authority logic: CA creation, leaf
+// certificate issuance via closure-based signers, and certificate inspection
+// utilities. It has no file-writing dependencies — all outputs are in-memory
+// values. File distribution is the responsibility of the operator package.
+package ca
 
 import (
 	"crypto"
@@ -13,7 +14,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -58,32 +58,6 @@ func PrintCertificateInfo(c *x509.Certificate) {
 		fmt.Printf("  Auth Key ID   : %X\n", c.AuthorityKeyId)
 	}
 	fmt.Println()
-}
-
-// WriteCert writes a certificate to a PEM file, creating parent directories as needed.
-func WriteCert(path string, c *x509.Certificate) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
-	}
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-	defer f.Close()
-	return pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: c.Raw})
-}
-
-// WriteKey writes a DER-encoded EC private key to a PEM file, creating parent directories as needed.
-func WriteKey(path string, keyDER []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
-	}
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-	defer f.Close()
-	return pem.Encode(f, &pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
 }
 
 // TLSVersionName returns a human-readable name for a TLS version constant

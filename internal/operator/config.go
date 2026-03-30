@@ -1,8 +1,8 @@
-// Package authority provides shared certificate-authority helpers for the demo
-// scenarios. It owns CA hierarchy creation, certificate issuance, and CA/chain
-// distribution logic while leaving scenario orchestration to the scenario
-// packages.
-package authority
+// Package operator provides a "human operator" abstraction over the ca package.
+// It orchestrates certificate authority creation, certificate issuance, and
+// distribution of certificates and keys to the file system. All file I/O lives
+// here; the ca package remains purely in-memory.
+package operator
 
 import (
 	"fmt"

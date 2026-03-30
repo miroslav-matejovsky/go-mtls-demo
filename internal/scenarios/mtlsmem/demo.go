@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/client"
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/server"
 )
 
@@ -42,7 +42,7 @@ func runDemo() error {
 
 type demoState struct {
 	caCert           *x509.Certificate
-	signLeaf         pki.SignerFunc
+	signLeaf         ca.SignerFunc
 	serverCert       *x509.Certificate
 	serverPrivateKey *ecdsa.PrivateKey
 	clientCert       *x509.Certificate

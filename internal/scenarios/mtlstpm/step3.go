@@ -5,7 +5,7 @@ package mtlstpm
 import (
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
 )
 
@@ -42,7 +42,7 @@ func step3GenerateClientKey(state *demoState, opCfg OperatorConfig, clientCfg Cl
 	state.clientCert = clientCert
 
 	fmt.Printf("  [CLIENT] Key generated — algorithm: ECDSA P-256, provider: %s\n", state.provider)
-	pki.PrintCertificateInfo(clientCert)
+	ca.PrintCertificateInfo(clientCert)
 	fmt.Println("  [CLIENT] Private key lives inside the provider — no .key file is written.")
 	fmt.Println()
 	return nil

@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
 )
 
 func resolveHandler(handler http.Handler, mutualTLS bool) http.Handler {
@@ -25,7 +25,7 @@ func resolveHandler(handler http.Handler, mutualTLS bool) http.Handler {
 		}
 		fmt.Printf("[SERVER] Received request over %s — version: %s, cipher suite: %s\n",
 			protocol,
-			pki.TLSVersionName(tlsState.Version),
+			ca.TLSVersionName(tlsState.Version),
 			tls.CipherSuiteName(tlsState.CipherSuite),
 		)
 		if mutualTLS && len(tlsState.PeerCertificates) > 0 {
@@ -39,11 +39,11 @@ func resolveHandler(handler http.Handler, mutualTLS bool) http.Handler {
 }
 
 func certPoolFromCertificate(caCert *x509.Certificate) (*x509.CertPool, error) {
-	return pki.CertPoolFromCertificate(caCert)
+	return ca.CertPoolFromCertificate(caCert)
 }
 
 func certPoolFromFile(path string) (*x509.CertPool, error) {
-	pool, err := pki.CertPoolFromFile(path)
+	pool, err := ca.CertPoolFromFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("server trust pool: %w", err)
 	}

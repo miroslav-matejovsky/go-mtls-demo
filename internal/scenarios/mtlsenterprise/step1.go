@@ -3,7 +3,7 @@ package mtlsenterprise
 import (
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
 )
 
 // step1CreateRootCA creates the enterprise PKI operator (root + intermediate CA) and prints root CA info.
@@ -19,7 +19,7 @@ func step1CreateRootCA(state *demoState, opCfg OperatorConfig) error {
 	state.operator = operator
 
 	fmt.Println("[OPERATOR] Root CA certificate:")
-	pki.PrintCertificateInfo(operator.TrustAnchor())
+	ca.PrintCertificateInfo(operator.TrustAnchor())
 	fmt.Printf("  [OPERATOR] Root CA cert → %s\n", opCfg.RootCA.CertFile)
 	fmt.Println("  [OPERATOR] Root CA key stays in memory — never written to disk.")
 	fmt.Println()

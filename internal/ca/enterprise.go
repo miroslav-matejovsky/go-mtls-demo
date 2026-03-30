@@ -1,4 +1,4 @@
-package pki
+package ca
 
 import (
 	"crypto"
@@ -7,15 +7,10 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/pem"
 	"fmt"
 	"net"
-	"os"
-	"path/filepath"
 	"time"
 )
-
-// --- Enterprise PKI: Root CA → Intermediate CA → Leaf ---
 
 // LeafProfile controls the certificate extensions for leaf certificates
 // issued by a profiled signer, enabling role-specific EKU and configurable SANs.
@@ -156,22 +151,4 @@ func GenerateLeafCertificateAndKey(sign ProfiledSignerFunc, cn string, profile L
 		return nil, nil, fmt.Errorf("failed to create leaf certificate: %w", err)
 	}
 	return leafCert, leafKey, nil
-}
-
-// WriteChainBundle writes a PEM file containing the leaf certificate followed by
-// the intermediate CA certificate. This is the standard format for presenting a
-// certificate chain in TLS.
-func WriteChainBundle(path string, leaf *x509.Certificate, intermediate *x509.Certificate) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
-	}
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-	defer f.Close()
-	if err := pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: leaf.Raw}); err != nil {
-		return fmt.Errorf("failed to encode leaf certificate: %w", err)
-	}
-	return pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: intermediate.Raw})
 }

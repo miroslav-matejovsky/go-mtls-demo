@@ -3,7 +3,7 @@ package tlsmem
 import (
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
 )
 
 // step2GenerateServerCertificate creates the server leaf certificate for the TLS server.
@@ -13,7 +13,7 @@ func step2GenerateServerCertificate(state *demoState) error {
 	fmt.Println("The client verifies its signature chain leads back to the trusted cert.")
 	fmt.Println()
 
-	serverCert, serverPrivateKey, err := pki.CreateLeafCertAndKey(state.signLeaf, "go TLS Demo Server")
+	serverCert, serverPrivateKey, err := ca.CreateLeafCertAndKey(state.signLeaf, "go TLS Demo Server")
 	if err != nil {
 		return fmt.Errorf("error creating server certificate: %w", err)
 	}
@@ -21,6 +21,6 @@ func step2GenerateServerCertificate(state *demoState) error {
 	state.serverCert = serverCert
 	state.serverPrivateKey = serverPrivateKey
 
-	pki.PrintCertificateInfo(serverCert)
+	ca.PrintCertificateInfo(serverCert)
 	return nil
 }

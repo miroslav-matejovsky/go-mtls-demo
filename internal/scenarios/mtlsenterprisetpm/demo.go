@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/authority"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/operator"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/client"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/server"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
@@ -146,7 +146,7 @@ func closeDemoResources(state *demoState) error {
 	return nil
 }
 
-type Operator = authority.Authority
+type Operator = operator.Operator
 
 func NewOperator(cfg OperatorConfig) (*Operator, error) {
 	rootValidity, err := cfg.RootCA.ParseValidity()
@@ -157,13 +157,13 @@ func NewOperator(cfg OperatorConfig) (*Operator, error) {
 	if err != nil {
 		return nil, err
 	}
-	return authority.NewEnterprise(authority.EnterpriseConfig{
-		RootCA: authority.CAConfig{
+	return operator.NewEnterprise(operator.EnterpriseConfig{
+		RootCA: operator.CAConfig{
 			CN:       cfg.RootCA.CN,
 			CertFile: cfg.RootCA.CertFile,
 			Validity: rootValidity,
 		},
-		IntermediateCA: authority.CAConfig{
+		IntermediateCA: operator.CAConfig{
 			CN:       cfg.IntermediateCA.CN,
 			CertFile: cfg.IntermediateCA.CertFile,
 			Validity: intValidity,
