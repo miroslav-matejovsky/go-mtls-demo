@@ -32,8 +32,30 @@ func NewSimple(cfg CAConfig) (*ca.Authority, error) {
 	return authority, nil
 }
 
-// NewEnterprise creates a two-tier certificate authority service and persists
-// the operator-managed root and intermediate certificates to disk.
+// NewRootCA creates a root-only certificate authority and persists the root CA
+// certificate to disk. The returned Authority can sign intermediate CA CSRs
+// via SignIntermediateCSR but cannot issue leaf certificates.
+func NewRootCA(cfg CAConfig) (*ca.Authority, error) {
+	if err := validateCAConfig("root CA", cfg); err != nil {
+		return nil, err
+	}
+
+	rootCA, err := ca.NewRootCA(ca.CAConfig{
+		CN:       cfg.CN,
+		Validity: cfg.Validity,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("creating root CA: %w", err)
+	}
+	if err := WriteCert(cfg.CertFile, rootCA.TrustAnchor()); err != nil {
+		return nil, fmt.Errorf("writing root CA certificate: %w", err)
+	}
+	return rootCA, nil
+}
+
+// NewEnterprise creates a two-tier certificate authority service. It explicitly
+// orchestrates: root CA creation → intermediate CSR → root signs CSR → persist
+// intermediate cert → build leaf-issuing authority.
 func NewEnterprise(cfg EnterpriseConfig) (*ca.Authority, error) {
 	if err := validateCAConfig("root CA", cfg.RootCA); err != nil {
 		return nil, err
@@ -42,32 +64,25 @@ func NewEnterprise(cfg EnterpriseConfig) (*ca.Authority, error) {
 		return nil, err
 	}
 
-	authority, err := ca.NewEnterprise(ca.EnterpriseConfig{
-		RootCA: ca.CAConfig{
-			CN:       cfg.RootCA.CN,
-			Validity: cfg.RootCA.Validity,
-		},
-		IntermediateCA: ca.CAConfig{
-			CN:       cfg.IntermediateCA.CN,
-			Validity: cfg.IntermediateCA.Validity,
-		},
-	})
+	rootCA, err := NewRootCA(cfg.RootCA)
 	if err != nil {
-		return nil, fmt.Errorf("creating enterprise CA: %w", err)
-	}
-	if err := WriteCert(cfg.RootCA.CertFile, authority.TrustAnchor()); err != nil {
-		return nil, fmt.Errorf("writing root CA certificate: %w", err)
+		return nil, err
 	}
 
-	intermediate := authority.Intermediate()
-	if intermediate == nil {
-		return nil, fmt.Errorf("creating enterprise CA: intermediate certificate is required")
+	intCSR, intKey, err := ca.CreateIntermediateCSR(cfg.IntermediateCA.CN)
+	if err != nil {
+		return nil, fmt.Errorf("creating intermediate CA CSR: %w", err)
 	}
-	if err := WriteCert(cfg.IntermediateCA.CertFile, intermediate); err != nil {
+
+	intCert, err := rootCA.SignIntermediateCSR(intCSR, cfg.IntermediateCA.Validity)
+	if err != nil {
+		return nil, fmt.Errorf("signing intermediate CA CSR: %w", err)
+	}
+	if err := WriteCert(cfg.IntermediateCA.CertFile, intCert); err != nil {
 		return nil, fmt.Errorf("writing intermediate CA certificate: %w", err)
 	}
 
-	return authority, nil
+	return ca.NewIssuer(rootCA.TrustAnchor(), intCert, intKey, cfg.IntermediateCA.Validity)
 }
 
 // DistributeTrustAnchor writes the trust anchor certificate to destPath so

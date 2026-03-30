@@ -39,7 +39,7 @@ func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfi
 	if err := step1CreateRootCA(state, opCfg); err != nil {
 		return err
 	}
-	if err := step2CreateIntermediateCA(state); err != nil {
+	if err := step2CreateIntermediateCA(state, opCfg); err != nil {
 		return err
 	}
 	if err := step3GenerateServerCert(state, serverCfg); err != nil {
@@ -71,10 +71,11 @@ func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfi
 }
 
 type demoState struct {
-	authority *Authority
-	server    *http.Server
-	serverURL string
-	serverErr chan error
+	rootAuthority *Authority
+	authority     *Authority
+	server        *http.Server
+	serverURL     string
+	serverErr     chan error
 }
 
 func newDemoState() *demoState {
@@ -105,26 +106,15 @@ func (state *demoState) unexpectedServerError() error {
 
 type Authority = ca.Authority
 
-func NewAuthority(cfg OperatorConfig) (*Authority, error) {
+func NewRootAuthority(cfg OperatorConfig) (*Authority, error) {
 	rootValidity, err := cfg.RootCA.ParseValidity()
 	if err != nil {
 		return nil, err
 	}
-	intValidity, err := cfg.IntermediateCA.ParseValidity()
-	if err != nil {
-		return nil, err
-	}
-	return operator.NewEnterprise(operator.EnterpriseConfig{
-		RootCA: operator.CAConfig{
-			CN:       cfg.RootCA.CN,
-			CertFile: cfg.RootCA.CertFile,
-			Validity: rootValidity,
-		},
-		IntermediateCA: operator.CAConfig{
-			CN:       cfg.IntermediateCA.CN,
-			CertFile: cfg.IntermediateCA.CertFile,
-			Validity: intValidity,
-		},
+	return operator.NewRootCA(operator.CAConfig{
+		CN:       cfg.RootCA.CN,
+		CertFile: cfg.RootCA.CertFile,
+		Validity: rootValidity,
 	})
 }
 

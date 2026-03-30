@@ -42,6 +42,53 @@ type Authority struct {
 	validity time.Duration
 }
 
+// NewRootCA creates a root-only certificate authority that can sign intermediate
+// CA CSRs via SignIntermediateCSR. It cannot issue leaf certificates — use
+// NewIssuer or NewSimple for that.
+func NewRootCA(cfg CAConfig) (*Authority, error) {
+	if err := validateCAConfig("root CA", cfg); err != nil {
+		return nil, err
+	}
+
+	cert, key, err := newSimpleCA(cfg.CN, cfg.Validity)
+	if err != nil {
+		return nil, fmt.Errorf("creating root CA: %w", err)
+	}
+
+	return &Authority{
+		trustAnchor: cert,
+		rootKey:     key,
+		// caKey and issuingCert are nil: leaf issuance is not allowed on a root-only CA.
+	}, nil
+}
+
+// NewIssuer creates a leaf-issuing authority from an existing intermediate CA
+// certificate and key. The trustAnchor is the root CA certificate that relying
+// parties use to verify the chain. validity controls how long issued leaf
+// certificates are valid.
+func NewIssuer(trustAnchor *x509.Certificate, issuingCert *x509.Certificate, issuingKey *ecdsa.PrivateKey, validity time.Duration) (*Authority, error) {
+	if trustAnchor == nil {
+		return nil, fmt.Errorf("creating issuer: trust anchor is required")
+	}
+	if issuingCert == nil {
+		return nil, fmt.Errorf("creating issuer: issuing certificate is required")
+	}
+	if issuingKey == nil {
+		return nil, fmt.Errorf("creating issuer: issuing key is required")
+	}
+	if validity <= 0 {
+		return nil, fmt.Errorf("creating issuer: validity must be greater than zero")
+	}
+	return &Authority{
+		trustAnchor:  trustAnchor,
+		intermediate: issuingCert,
+		issuingCert:  issuingCert,
+		caKey:        issuingKey,
+		validity:     validity,
+		// rootKey is nil: intermediate CSR signing is not allowed on a leaf issuer.
+	}, nil
+}
+
 // NewSimple creates a single-tier self-signed certificate authority service.
 func NewSimple(cfg CAConfig) (*Authority, error) {
 	if err := validateCAConfig("simple CA", cfg); err != nil {
@@ -62,7 +109,10 @@ func NewSimple(cfg CAConfig) (*Authority, error) {
 }
 
 // NewEnterprise creates a two-tier certificate authority service with a root
-// CA and an operational intermediate CA.
+// CA and an operational intermediate CA. It is a convenience constructor that
+// composes NewRootCA + CreateIntermediateCSR + SignIntermediateCSR + NewIssuer.
+// For explicit control over each step — e.g. to persist and audit the CSR —
+// call those functions directly.
 func NewEnterprise(cfg EnterpriseConfig) (*Authority, error) {
 	if err := validateCAConfig("root CA", cfg.RootCA); err != nil {
 		return nil, err
@@ -71,19 +121,22 @@ func NewEnterprise(cfg EnterpriseConfig) (*Authority, error) {
 		return nil, err
 	}
 
-	rootCert, rootKey, intCert, intKey, err := newEnterpriseCA(cfg.RootCA.CN, cfg.RootCA.Validity, cfg.IntermediateCA.CN, cfg.IntermediateCA.Validity)
+	rootCA, err := NewRootCA(cfg.RootCA)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Authority{
-		trustAnchor:  rootCert,
-		intermediate: intCert,
-		issuingCert:  intCert,
-		caKey:        intKey,
-		rootKey:      rootKey,
-		validity:     cfg.IntermediateCA.Validity,
-	}, nil
+	intCSR, intKey, err := CreateIntermediateCSR(cfg.IntermediateCA.CN)
+	if err != nil {
+		return nil, fmt.Errorf("creating intermediate CA CSR: %w", err)
+	}
+
+	intCert, err := rootCA.SignIntermediateCSR(intCSR, cfg.IntermediateCA.Validity)
+	if err != nil {
+		return nil, fmt.Errorf("signing intermediate CA CSR: %w", err)
+	}
+
+	return NewIssuer(rootCA.TrustAnchor(), intCert, intKey, cfg.IntermediateCA.Validity)
 }
 
 // TrustAnchor returns the certificate that relying parties should trust. For
@@ -175,6 +228,9 @@ func (a *Authority) signRequest(req *x509.CertificateRequest, eku x509.ExtKeyUsa
 }
 
 func (a *Authority) signPublicKey(pub crypto.PublicKey, cn string, ekus []x509.ExtKeyUsage, dnsNames []string, ipAddresses []net.IP) (*x509.Certificate, error) {
+	if a.caKey == nil {
+		return nil, fmt.Errorf("cannot issue leaf certificate: this is a root-only CA; use NewIssuer or NewSimple to create a leaf-issuing authority")
+	}
 	serial, err := randomSerial()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate leaf serial: %w", err)
