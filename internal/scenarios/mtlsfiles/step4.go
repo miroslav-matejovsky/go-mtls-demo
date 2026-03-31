@@ -1,11 +1,11 @@
 package mtlsfiles
 
 import (
-	"crypto/x509"
 	"fmt"
 	"path/filepath"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/operator"
 )
 
 // step4GenerateUntrustedClient creates a separate client identity signed by a different CA to use in the rejection flow.
@@ -15,27 +15,27 @@ func step4GenerateUntrustedClient(state *demoState, untrustedCfg UntrustedClient
 	fmt.Printf("Untrusted client files written to: %s\n", filepath.Dir(untrustedCfg.CertFile))
 	fmt.Println()
 
-	_, untrustedSignLeaf, err := pki.CreateCA(untrustedCfg.CACN, state.validity)
+	untrustedAuthority, err := ca.NewSimple(ca.CAConfig{
+		CN:       untrustedCfg.CACN,
+		Validity: state.validity,
+	})
 	if err != nil {
 		return fmt.Errorf("error creating untrusted CA: %w", err)
 	}
-	untrustedClientCert, untrustedClientKey, err := pki.CreateLeafCertAndKey(untrustedSignLeaf, untrustedCfg.CN)
+	untrustedCSR, untrustedClientKey, err := ca.CreateClientCSR(untrustedCfg.CN)
 	if err != nil {
-		return fmt.Errorf("error creating untrusted client certificate: %w", err)
+		return fmt.Errorf("error creating untrusted client CSR: %w", err)
 	}
-	untrustedKeyBytes, err := x509.MarshalECPrivateKey(untrustedClientKey)
+	untrustedClientCert, err := untrustedAuthority.SignClientCSR(untrustedCSR)
 	if err != nil {
-		return fmt.Errorf("error marshaling untrusted client key: %w", err)
+		return fmt.Errorf("error signing untrusted client certificate: %w", err)
 	}
-	if err := pki.WriteCert(untrustedCfg.CertFile, untrustedClientCert); err != nil {
-		return fmt.Errorf("error writing untrusted client certificate: %w", err)
-	}
-	if err := pki.WriteKey(untrustedCfg.KeyFile, untrustedKeyBytes); err != nil {
-		return fmt.Errorf("error writing untrusted client key: %w", err)
+	if err := operator.WriteIdentity(untrustedCfg.CertFile, untrustedCfg.KeyFile, untrustedClientCert, untrustedClientKey); err != nil {
+		return fmt.Errorf("error writing untrusted client credentials: %w", err)
 	}
 	// The untrusted client still needs the server's CA cert to verify the server during
 	// the handshake — it's untrusted because its OWN cert is signed by a different CA.
-	if err := state.operator.DistributeTrustAnchor(untrustedCfg.CACertFile); err != nil {
+	if err := operator.DistributeTrustAnchor(untrustedCfg.CACertFile, state.authority.TrustAnchor()); err != nil {
 		return fmt.Errorf("error writing trusted CA cert to untrusted directory: %w", err)
 	}
 

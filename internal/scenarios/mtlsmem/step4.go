@@ -13,7 +13,7 @@ func step4StartServer(state *demoState) error {
 	fmt.Println("Connections without a CA-signed client certificate will be rejected.")
 	fmt.Println()
 
-	server, err := CreateServer(state.serverCert, state.serverPrivateKey, state.caCert)
+	server, err := CreateServer(state.serverCert, state.serverPrivateKey, state.authority.TrustAnchor())
 	if err != nil {
 		return fmt.Errorf("error creating server: %w", err)
 	}

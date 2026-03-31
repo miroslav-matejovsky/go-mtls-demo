@@ -11,8 +11,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/authority"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/client"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/operator"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/server"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
 )
@@ -44,7 +45,7 @@ func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfi
 	if err := step1CreateRootCA(state, opCfg); err != nil {
 		return err
 	}
-	if err := step2CreateIntermediateCA(state); err != nil {
+	if err := step2CreateIntermediateCA(state, opCfg); err != nil {
 		return err
 	}
 	if err := step3GenerateServerCert(state, serverCfg); err != nil {
@@ -90,7 +91,8 @@ func runDemo(opCfg OperatorConfig, serverCfg ServerConfig, clientCfg ClientConfi
 }
 
 type demoState struct {
-	operator         *Operator
+	rootAuthority    *Authority
+	authority        *Authority
 	provider         string
 	store            *tpm.CurrentUserStore
 	clientSigner     crypto.Signer
@@ -146,28 +148,17 @@ func closeDemoResources(state *demoState) error {
 	return nil
 }
 
-type Operator = authority.Authority
+type Authority = ca.Authority
 
-func NewOperator(cfg OperatorConfig) (*Operator, error) {
+func NewRootAuthority(cfg OperatorConfig) (*Authority, error) {
 	rootValidity, err := cfg.RootCA.ParseValidity()
 	if err != nil {
 		return nil, err
 	}
-	intValidity, err := cfg.IntermediateCA.ParseValidity()
-	if err != nil {
-		return nil, err
-	}
-	return authority.NewEnterprise(authority.EnterpriseConfig{
-		RootCA: authority.CAConfig{
-			CN:       cfg.RootCA.CN,
-			CertFile: cfg.RootCA.CertFile,
-			Validity: rootValidity,
-		},
-		IntermediateCA: authority.CAConfig{
-			CN:       cfg.IntermediateCA.CN,
-			CertFile: cfg.IntermediateCA.CertFile,
-			Validity: intValidity,
-		},
+	return operator.NewRootCA(operator.CAConfig{
+		CN:       cfg.RootCA.CN,
+		CertFile: cfg.RootCA.CertFile,
+		Validity: rootValidity,
 	})
 }
 

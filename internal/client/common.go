@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
 )
 
 func newHTTPClient(tlsConfig *tls.Config) *http.Client {
@@ -22,11 +22,11 @@ func newHTTPClient(tlsConfig *tls.Config) *http.Client {
 }
 
 func certPoolFromCertificate(caCert *x509.Certificate) (*x509.CertPool, error) {
-	return pki.CertPoolFromCertificate(caCert)
+	return ca.CertPoolFromCertificate(caCert)
 }
 
 func certPoolFromFile(path string) (*x509.CertPool, error) {
-	pool, err := pki.CertPoolFromFile(path)
+	pool, err := ca.CertPoolFromFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("client trust pool: %w", err)
 	}

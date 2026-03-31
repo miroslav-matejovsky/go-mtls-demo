@@ -8,7 +8,7 @@ import (
 	"io"
 	"log"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
 )
 
 // step5StartServerAndMakeTrustedRequest starts the file-backed mTLS server and completes the trusted Windows-store client request.
@@ -37,7 +37,7 @@ func step5StartServerAndMakeTrustedRequest(state *demoState, serverCfg ServerCon
 	fmt.Printf("[SERVER] Listening on %s\n", state.serverURL)
 	fmt.Println()
 
-	client, err := CreateClient(state.operator.TrustAnchor(), state.storeKey, state.storedClientCert)
+	client, err := CreateClient(state.authority.TrustAnchor(), state.storeKey, state.storedClientCert)
 	if err != nil {
 		return fmt.Errorf("error creating client: %w", err)
 	}
@@ -52,7 +52,7 @@ func step5StartServerAndMakeTrustedRequest(state *demoState, serverCfg ServerCon
 	fmt.Printf("[CLIENT] Server certificate verified: %s (issued by %s)\n",
 		resp.TLS.PeerCertificates[0].Subject.CommonName, resp.TLS.PeerCertificates[0].Issuer.CommonName)
 	fmt.Printf("[CLIENT] Handshake complete  — version: %s, cipher suite: %s\n",
-		pki.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
+		ca.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
 	fmt.Printf("[CLIENT] Signing performed by: %s (private key never left the provider)\n", state.provider)
 	fmt.Println("[CLIENT] Response:", resp.Status)
 	fmt.Println()

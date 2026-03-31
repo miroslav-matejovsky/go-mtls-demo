@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
 )
 
 // step5MakeTrustedRequest performs the successful mutual-TLS request with the CA-signed client certificate.
@@ -14,7 +14,7 @@ func step5MakeTrustedRequest(state *demoState) error {
 	fmt.Println("Authentication: client verifies server cert → CA   |   server verifies client cert → CA.")
 	fmt.Println()
 
-	client, err := CreateClient(state.caCert, state.clientPrivateKey, state.clientCert)
+	client, err := CreateClient(state.authority.TrustAnchor(), state.clientPrivateKey, state.clientCert)
 	if err != nil {
 		return fmt.Errorf("error creating client: %w", err)
 	}
@@ -29,7 +29,7 @@ func step5MakeTrustedRequest(state *demoState) error {
 	fmt.Printf("[CLIENT] Server certificate verified: %s (issued by %s)\n",
 		resp.TLS.PeerCertificates[0].Subject.CommonName, resp.TLS.PeerCertificates[0].Issuer.CommonName)
 	fmt.Printf("[CLIENT] Handshake complete  — version: %s, cipher suite: %s\n",
-		pki.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
+		ca.TLSVersionName(resp.TLS.Version), tls.CipherSuiteName(resp.TLS.CipherSuite))
 	fmt.Println("[CLIENT] Response:", resp.Status)
 	fmt.Println()
 	return nil

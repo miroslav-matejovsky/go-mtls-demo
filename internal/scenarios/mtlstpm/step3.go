@@ -5,7 +5,7 @@ package mtlstpm
 import (
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
 	"github.com/miroslav-matejovsky/go-mtls-demo/internal/tpm"
 )
 
@@ -32,7 +32,13 @@ func step3GenerateClientKey(state *demoState, opCfg OperatorConfig, clientCfg Cl
 		return fmt.Errorf("error generating key in Windows cert store: %w", err)
 	}
 
-	clientCert, err := state.operator.SignClientCertForKey(signer.Public(), clientCfg.CN)
+	clientCSR, err := ca.CreateClientCSRForSigner(signer, clientCfg.CN)
+	if err != nil {
+		store.Close()
+		return fmt.Errorf("error creating client CSR: %w", err)
+	}
+
+	clientCert, err := state.authority.SignClientCSR(clientCSR)
 	if err != nil {
 		store.Close()
 		return fmt.Errorf("error signing client certificate: %w", err)
@@ -42,7 +48,7 @@ func step3GenerateClientKey(state *demoState, opCfg OperatorConfig, clientCfg Cl
 	state.clientCert = clientCert
 
 	fmt.Printf("  [CLIENT] Key generated — algorithm: ECDSA P-256, provider: %s\n", state.provider)
-	pki.PrintCertificateInfo(clientCert)
+	ca.PrintCertificateInfo(clientCert)
 	fmt.Println("  [CLIENT] Private key lives inside the provider — no .key file is written.")
 	fmt.Println()
 	return nil

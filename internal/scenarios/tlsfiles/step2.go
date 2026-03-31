@@ -1,10 +1,10 @@
 package tlsfiles
 
 import (
-	"crypto/x509"
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/operator"
 )
 
 // step2GenerateServerCertificate issues the server certificate and writes the server-owned files to disk.
@@ -14,23 +14,20 @@ func step2GenerateServerCertificate(state *demoState, serverCfg ServerConfig) er
 	fmt.Println("The private key is generated locally and stays in the server's own directory.")
 	fmt.Println()
 
-	serverCert, serverPrivateKey, err := state.operator.SignServerCert(serverCfg.CN, nil)
+	serverCSR, serverPrivateKey, err := ca.CreateServerCSR(serverCfg.CN, nil)
 	if err != nil {
-		return fmt.Errorf("error creating server certificate: %w", err)
+		return fmt.Errorf("error creating server CSR: %w", err)
+	}
+	serverCert, err := state.authority.SignServerCSR(serverCSR)
+	if err != nil {
+		return fmt.Errorf("error signing server certificate: %w", err)
 	}
 
-	serverKeyBytes, err := x509.MarshalECPrivateKey(serverPrivateKey)
-	if err != nil {
-		return fmt.Errorf("error marshaling server key: %w", err)
-	}
-	if err := pki.WriteCert(serverCfg.CertFile, serverCert); err != nil {
-		return fmt.Errorf("error writing server certificate: %w", err)
-	}
-	if err := pki.WriteKey(serverCfg.KeyFile, serverKeyBytes); err != nil {
-		return fmt.Errorf("error writing server key: %w", err)
+	if err := operator.WriteIdentity(serverCfg.CertFile, serverCfg.KeyFile, serverCert, serverPrivateKey); err != nil {
+		return fmt.Errorf("error writing server credentials: %w", err)
 	}
 
-	pki.PrintCertificateInfo(serverCert)
+	ca.PrintCertificateInfo(serverCert)
 	fmt.Printf("  [SERVER] Certificate → %s\n", serverCfg.CertFile)
 	fmt.Printf("  [SERVER] Private key  → %s\n", serverCfg.KeyFile)
 	fmt.Println()

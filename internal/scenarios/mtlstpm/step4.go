@@ -15,7 +15,7 @@ func step4ImportClientCertificate(state *demoState, clientCfg ClientConfig) erro
 	fmt.Printf("Linking signed certificate to key container %q in CurrentUser\\My.\n", clientCfg.Container)
 	fmt.Println()
 
-	if err := state.store.StoreCertificate(state.clientCert, state.operator.TrustAnchor()); err != nil {
+	if err := state.store.StoreCertificate(state.clientCert, state.authority.TrustAnchor()); err != nil {
 		return fmt.Errorf("error storing client certificate: %w", err)
 	}
 	fmt.Printf("  [CLIENT] Certificate stored in CurrentUser\\My\n")

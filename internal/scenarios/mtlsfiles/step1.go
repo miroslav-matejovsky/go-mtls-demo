@@ -1,11 +1,11 @@
 package mtlsfiles
 
 import (
-	"crypto/x509"
 	"fmt"
 	"path/filepath"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/operator"
 )
 
 // step1GenerateCertificates creates the CA plus trusted server and client credentials and writes them to their directories.
@@ -17,7 +17,7 @@ func step1GenerateCertificates(state *demoState, opCfg OperatorConfig, serverCfg
 	fmt.Printf("  %s  — Client operator\n", filepath.Dir(clientCfg.CertFile))
 	fmt.Println()
 
-	operator, err := NewOperator(opCfg)
+	authority, err := NewAuthority(opCfg)
 	if err != nil {
 		return fmt.Errorf("error creating operator: %w", err)
 	}
@@ -25,59 +25,53 @@ func step1GenerateCertificates(state *demoState, opCfg OperatorConfig, serverCfg
 	if err != nil {
 		return err
 	}
-	if err := operator.DistributeTrustAnchor(serverCfg.CACertFile); err != nil {
+	if err := operator.DistributeTrustAnchor(serverCfg.CACertFile, authority.TrustAnchor()); err != nil {
 		return fmt.Errorf("error distributing CA certificate to server: %w", err)
 	}
-	if err := operator.DistributeTrustAnchor(clientCfg.CACertFile); err != nil {
+	if err := operator.DistributeTrustAnchor(clientCfg.CACertFile, authority.TrustAnchor()); err != nil {
 		return fmt.Errorf("error distributing CA certificate to client: %w", err)
 	}
 
-	state.operator = operator
+	state.authority = authority
 	state.validity = validity
 
-	pki.PrintCertificateInfo(operator.TrustAnchor())
+	ca.PrintCertificateInfo(authority.TrustAnchor())
 	fmt.Printf("  [OPERATOR] CA Certificate → %s\n", opCfg.CertFile)
 	fmt.Printf("  [OPERATOR] Distributed to server → %s\n", serverCfg.CACertFile)
 	fmt.Printf("  [OPERATOR] Distributed to client → %s\n", clientCfg.CACertFile)
 	fmt.Println("  [OPERATOR] Private key stays on the CA machine — NOT written to disk here.")
 	fmt.Println()
 
-	serverCert, serverPrivateKey, err := operator.SignServerCert(serverCfg.CN, nil)
+	serverCSR, serverPrivateKey, err := ca.CreateServerCSR(serverCfg.CN, nil)
 	if err != nil {
-		return fmt.Errorf("error creating server certificate: %w", err)
+		return fmt.Errorf("error creating server CSR: %w", err)
 	}
-	serverKeyBytes, err := x509.MarshalECPrivateKey(serverPrivateKey)
+	serverCert, err := authority.SignServerCSR(serverCSR)
 	if err != nil {
-		return fmt.Errorf("error marshaling server key: %w", err)
+		return fmt.Errorf("error signing server certificate: %w", err)
 	}
-	if err := pki.WriteCert(serverCfg.CertFile, serverCert); err != nil {
-		return fmt.Errorf("error writing server certificate: %w", err)
-	}
-	if err := pki.WriteKey(serverCfg.KeyFile, serverKeyBytes); err != nil {
-		return fmt.Errorf("error writing server key: %w", err)
+	if err := operator.WriteIdentity(serverCfg.CertFile, serverCfg.KeyFile, serverCert, serverPrivateKey); err != nil {
+		return fmt.Errorf("error writing server credentials: %w", err)
 	}
 
-	pki.PrintCertificateInfo(serverCert)
+	ca.PrintCertificateInfo(serverCert)
 	fmt.Printf("  [SERVER] Certificate → %s\n", serverCfg.CertFile)
 	fmt.Printf("  [SERVER] Private key  → %s\n", serverCfg.KeyFile)
 	fmt.Println()
 
-	clientCert, clientPrivateKey, err := operator.SignClientCert(clientCfg.CN)
+	clientCSR, clientPrivateKey, err := ca.CreateClientCSR(clientCfg.CN)
 	if err != nil {
-		return fmt.Errorf("error creating client certificate: %w", err)
+		return fmt.Errorf("error creating client CSR: %w", err)
 	}
-	clientKeyBytes, err := x509.MarshalECPrivateKey(clientPrivateKey)
+	clientCert, err := authority.SignClientCSR(clientCSR)
 	if err != nil {
-		return fmt.Errorf("error marshaling client key: %w", err)
+		return fmt.Errorf("error signing client certificate: %w", err)
 	}
-	if err := pki.WriteCert(clientCfg.CertFile, clientCert); err != nil {
-		return fmt.Errorf("error writing client certificate: %w", err)
-	}
-	if err := pki.WriteKey(clientCfg.KeyFile, clientKeyBytes); err != nil {
-		return fmt.Errorf("error writing client key: %w", err)
+	if err := operator.WriteIdentity(clientCfg.CertFile, clientCfg.KeyFile, clientCert, clientPrivateKey); err != nil {
+		return fmt.Errorf("error writing client credentials: %w", err)
 	}
 
-	pki.PrintCertificateInfo(clientCert)
+	ca.PrintCertificateInfo(clientCert)
 	fmt.Printf("  [CLIENT] Certificate → %s\n", clientCfg.CertFile)
 	fmt.Printf("  [CLIENT] Private key  → %s\n", clientCfg.KeyFile)
 	fmt.Println()

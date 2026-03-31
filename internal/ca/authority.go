@@ -1,0 +1,269 @@
+package ca
+
+import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"fmt"
+	"net"
+	"time"
+)
+
+// CAConfig describes a certificate authority service with its common name and
+// certificate validity period. It contains only CA concerns and no file paths.
+type CAConfig struct {
+	CN       string
+	Validity time.Duration
+}
+
+// EnterpriseConfig describes a two-tier CA service consisting of a root CA and
+// an operational intermediate CA.
+type EnterpriseConfig struct {
+	RootCA         CAConfig
+	IntermediateCA CAConfig
+}
+
+// Authority represents an in-memory certificate authority service that can
+// issue server and client leaf certificates via CSRs. For enterprise PKI it
+// exposes the trust anchor and intermediate separately so operators can
+// distribute them.
+type Authority struct {
+	trustAnchor  *x509.Certificate
+	intermediate *x509.Certificate
+	// issuingCert is the certificate used to sign leaf certificates.
+	// For simple PKI it equals trustAnchor; for enterprise PKI it is the intermediate.
+	issuingCert *x509.Certificate
+	caKey       *ecdsa.PrivateKey
+	// rootKey is the root CA private key for enterprise PKI only (nil for simple PKI).
+	// It is used exclusively to sign intermediate CA CSRs via SignIntermediateCSR.
+	rootKey  *ecdsa.PrivateKey
+	validity time.Duration
+}
+
+// NewRootCA creates a root-only certificate authority that can sign intermediate
+// CA CSRs via SignIntermediateCSR. It cannot issue leaf certificates — use
+// NewIssuer or NewSimple for that.
+func NewRootCA(cfg CAConfig) (*Authority, error) {
+	if err := validateCAConfig("root CA", cfg); err != nil {
+		return nil, err
+	}
+
+	cert, key, err := newSimpleCA(cfg.CN, cfg.Validity)
+	if err != nil {
+		return nil, fmt.Errorf("creating root CA: %w", err)
+	}
+
+	return &Authority{
+		trustAnchor: cert,
+		rootKey:     key,
+		// caKey and issuingCert are nil: leaf issuance is not allowed on a root-only CA.
+	}, nil
+}
+
+// NewIssuer creates a leaf-issuing authority from an existing intermediate CA
+// certificate and key. The trustAnchor is the root CA certificate that relying
+// parties use to verify the chain. validity controls how long issued leaf
+// certificates are valid.
+func NewIssuer(trustAnchor *x509.Certificate, issuingCert *x509.Certificate, issuingKey *ecdsa.PrivateKey, validity time.Duration) (*Authority, error) {
+	if trustAnchor == nil {
+		return nil, fmt.Errorf("creating issuer: trust anchor is required")
+	}
+	if issuingCert == nil {
+		return nil, fmt.Errorf("creating issuer: issuing certificate is required")
+	}
+	if issuingKey == nil {
+		return nil, fmt.Errorf("creating issuer: issuing key is required")
+	}
+	if validity <= 0 {
+		return nil, fmt.Errorf("creating issuer: validity must be greater than zero")
+	}
+	return &Authority{
+		trustAnchor:  trustAnchor,
+		intermediate: issuingCert,
+		issuingCert:  issuingCert,
+		caKey:        issuingKey,
+		validity:     validity,
+		// rootKey is nil: intermediate CSR signing is not allowed on a leaf issuer.
+	}, nil
+}
+
+// NewSimple creates a single-tier self-signed certificate authority service.
+func NewSimple(cfg CAConfig) (*Authority, error) {
+	if err := validateCAConfig("simple CA", cfg); err != nil {
+		return nil, err
+	}
+
+	cert, key, err := newSimpleCA(cfg.CN, cfg.Validity)
+	if err != nil {
+		return nil, fmt.Errorf("creating simple CA: %w", err)
+	}
+
+	return &Authority{
+		trustAnchor: cert,
+		issuingCert: cert,
+		caKey:       key,
+		validity:    cfg.Validity,
+	}, nil
+}
+
+// NewEnterprise creates a two-tier certificate authority service with a root
+// CA and an operational intermediate CA. It is a convenience constructor that
+// composes NewRootCA + CreateIntermediateCSR + SignIntermediateCSR + NewIssuer.
+// For explicit control over each step — e.g. to persist and audit the CSR —
+// call those functions directly.
+func NewEnterprise(cfg EnterpriseConfig) (*Authority, error) {
+	if err := validateCAConfig("root CA", cfg.RootCA); err != nil {
+		return nil, err
+	}
+	if err := validateCAConfig("intermediate CA", cfg.IntermediateCA); err != nil {
+		return nil, err
+	}
+
+	rootCA, err := NewRootCA(cfg.RootCA)
+	if err != nil {
+		return nil, err
+	}
+
+	intCSR, intKey, err := CreateIntermediateCSR(cfg.IntermediateCA.CN)
+	if err != nil {
+		return nil, fmt.Errorf("creating intermediate CA CSR: %w", err)
+	}
+
+	intCert, err := rootCA.SignIntermediateCSR(intCSR, cfg.IntermediateCA.Validity)
+	if err != nil {
+		return nil, fmt.Errorf("signing intermediate CA CSR: %w", err)
+	}
+
+	return NewIssuer(rootCA.TrustAnchor(), intCert, intKey, cfg.IntermediateCA.Validity)
+}
+
+// TrustAnchor returns the certificate that relying parties should trust. For
+// single-tier PKI this is the CA certificate; for two-tier PKI this is the root
+// CA certificate.
+func (a *Authority) TrustAnchor() *x509.Certificate {
+	return a.trustAnchor
+}
+
+// Intermediate returns the intermediate CA certificate for two-tier PKI, or
+// nil for single-tier PKI.
+func (a *Authority) Intermediate() *x509.Certificate {
+	return a.intermediate
+}
+
+// SignIntermediateCSR issues an intermediate CA certificate from a CSR.
+// CA policy extensions (IsCA, MaxPathLen:0, KeyUsage:CertSign) are applied by
+// the root CA as signer policy — they are NOT taken from the CSR.
+// Returns an error if called on a simple (single-tier) Authority that has no root key.
+func (a *Authority) SignIntermediateCSR(req *x509.CertificateRequest, validity time.Duration) (*x509.Certificate, error) {
+	if a.rootKey == nil {
+		return nil, fmt.Errorf("signing intermediate CSR: root key is not available (only enterprise CA can sign intermediates)")
+	}
+	if req == nil {
+		return nil, fmt.Errorf("signing intermediate CSR: request is required")
+	}
+	if err := req.CheckSignature(); err != nil {
+		return nil, fmt.Errorf("signing intermediate CSR: invalid request signature: %w", err)
+	}
+	if validity <= 0 {
+		return nil, fmt.Errorf("signing intermediate CSR: validity must be greater than zero")
+	}
+
+	serial, err := randomSerial()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate intermediate CA serial: %w", err)
+	}
+	skid, err := computeSKID(req.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute intermediate CA SKID: %w", err)
+	}
+	// CA policy is applied here — not taken from the CSR.
+	template := &x509.Certificate{
+		SerialNumber:          serial,
+		Subject:               req.Subject,
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(validity),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		MaxPathLen:            0,
+		MaxPathLenZero:        true,
+		SubjectKeyId:          skid,
+		AuthorityKeyId:        a.trustAnchor.SubjectKeyId,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, template, a.trustAnchor, req.PublicKey, a.rootKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create intermediate CA certificate: %w", err)
+	}
+	return x509.ParseCertificate(certDER)
+}
+
+// SignServerCSR issues a server certificate from a CSR. SANs are copied from the
+// request and ServerAuth EKU is applied by the CA.
+func (a *Authority) SignServerCSR(req *x509.CertificateRequest) (*x509.Certificate, error) {
+	return a.signRequest(req, x509.ExtKeyUsageServerAuth, "server")
+}
+
+// SignClientCSR issues a client certificate from a CSR. SANs are copied from the
+// request and ClientAuth EKU is applied by the CA.
+func (a *Authority) SignClientCSR(req *x509.CertificateRequest) (*x509.Certificate, error) {
+	return a.signRequest(req, x509.ExtKeyUsageClientAuth, "client")
+}
+
+// SignClientCertForKey issues a ClientAuth certificate for an externally
+// provided public key, such as a TPM-backed key that never leaves its provider.
+func (a *Authority) SignClientCertForKey(pub crypto.PublicKey, cn string) (*x509.Certificate, error) {
+	return a.signPublicKey(pub, cn, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, nil, []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback})
+}
+
+func (a *Authority) signRequest(req *x509.CertificateRequest, eku x509.ExtKeyUsage, role string) (*x509.Certificate, error) {
+	if req == nil {
+		return nil, fmt.Errorf("signing %s CSR: request is required", role)
+	}
+	if err := req.CheckSignature(); err != nil {
+		return nil, fmt.Errorf("signing %s CSR: invalid request signature: %w", role, err)
+	}
+	return a.signPublicKey(req.PublicKey, req.Subject.CommonName, []x509.ExtKeyUsage{eku}, req.DNSNames, req.IPAddresses)
+}
+
+func (a *Authority) signPublicKey(pub crypto.PublicKey, cn string, ekus []x509.ExtKeyUsage, dnsNames []string, ipAddresses []net.IP) (*x509.Certificate, error) {
+	if a.caKey == nil {
+		return nil, fmt.Errorf("cannot issue leaf certificate: this is a root-only CA; use NewIssuer or NewSimple to create a leaf-issuing authority")
+	}
+	serial, err := randomSerial()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate leaf serial: %w", err)
+	}
+	skid, err := computeSKID(pub)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute leaf SKID: %w", err)
+	}
+	template := &x509.Certificate{
+		SerialNumber:   serial,
+		Subject:        pkix.Name{CommonName: cn},
+		NotBefore:      time.Now().Add(-time.Hour),
+		NotAfter:       time.Now().Add(a.validity),
+		ExtKeyUsage:    ekus,
+		KeyUsage:       x509.KeyUsageDigitalSignature,
+		DNSNames:       dnsNames,
+		IPAddresses:    ipAddresses,
+		SubjectKeyId:   skid,
+		AuthorityKeyId: a.issuingCert.SubjectKeyId,
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, template, a.issuingCert, pub, a.caKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create certificate: %w", err)
+	}
+	return x509.ParseCertificate(certDER)
+}
+
+func validateCAConfig(role string, cfg CAConfig) error {
+	if cfg.CN == "" {
+		return fmt.Errorf("creating %s: common name is required", role)
+	}
+	if cfg.Validity <= 0 {
+		return fmt.Errorf("creating %s: validity must be greater than zero", role)
+	}
+	return nil
+}

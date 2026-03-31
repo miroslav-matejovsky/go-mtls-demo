@@ -1,10 +1,10 @@
 package mtlsenterprise
 
 import (
-	"crypto/x509"
 	"fmt"
 
-	"github.com/miroslav-matejovsky/go-mtls-demo/internal/pki"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/ca"
+	"github.com/miroslav-matejovsky/go-mtls-demo/internal/operator"
 )
 
 // step4GenerateClientCert issues a client certificate with ClientAuth EKU.
@@ -12,27 +12,23 @@ func step4GenerateClientCert(state *demoState, clientCfg ClientConfig) error {
 	fmt.Println("=== Step 4/8: Generate client certificate (ClientAuth EKU) ===")
 	fmt.Println()
 
-	clientCert, clientKey, err := state.operator.SignClientCert(clientCfg.CN)
+	clientCSR, clientKey, err := ca.CreateClientCSR(clientCfg.CN)
 	if err != nil {
-		return fmt.Errorf("error creating client certificate: %w", err)
+		return fmt.Errorf("error creating client CSR: %w", err)
 	}
-	clientKeyBytes, err := x509.MarshalECPrivateKey(clientKey)
+	clientCert, err := state.authority.SignClientCSR(clientCSR)
 	if err != nil {
-		return fmt.Errorf("error marshaling client key: %w", err)
+		return fmt.Errorf("error signing client certificate: %w", err)
 	}
-
-	if err := state.operator.WriteChain(clientCfg.ChainFile, clientCert); err != nil {
-		return fmt.Errorf("error writing client chain bundle: %w", err)
+	if err := operator.WriteChainIdentity(clientCfg.ChainFile, clientCfg.KeyFile, clientCert, clientKey, state.authority.Intermediate()); err != nil {
+		return fmt.Errorf("error writing client credentials: %w", err)
 	}
-	if err := pki.WriteKey(clientCfg.KeyFile, clientKeyBytes); err != nil {
-		return fmt.Errorf("error writing client key: %w", err)
-	}
-	if err := state.operator.DistributeTrustAnchor(clientCfg.RootCertFile); err != nil {
+	if err := operator.DistributeTrustAnchor(clientCfg.RootCertFile, state.authority.TrustAnchor()); err != nil {
 		return fmt.Errorf("error distributing root CA to client: %w", err)
 	}
 
 	fmt.Println("[OPERATOR] Client certificate:")
-	pki.PrintCertificateInfo(clientCert)
+	ca.PrintCertificateInfo(clientCert)
 	fmt.Printf("  [CLIENT] EKU         : ClientAuth only\n")
 	fmt.Printf("  [CLIENT] Chain bundle → %s\n", clientCfg.ChainFile)
 	fmt.Printf("  [CLIENT] Private key  → %s\n", clientCfg.KeyFile)
